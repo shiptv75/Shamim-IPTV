@@ -9,6 +9,9 @@ const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
   { url: JSON_PLAYLIST_URL, type: "json", source: "HridoyTV" },
+  { url: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u", type: "m3u", source: "Tapmad BD" },
+  { url: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u", type: "m3u", source: "Fancode" },
+  { url: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u", type: "m3u", source: "Xn IPTV" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 const CORS_PROXIES = [
@@ -478,28 +481,30 @@ function renderChipBar() {
   bar.querySelectorAll(".chip").forEach((btn) => {
     btn.addEventListener("click", () => setChip(btn.dataset.key));
   });
-  updateChipScrollThumb();
+  updateChipScrollArrows();
 }
 
-// ── thin scroll indicator under the category chip bar ──
-function updateChipScrollThumb() {
+function updateChipScrollArrows() {
   const bar = $("#chipBar");
-  const thumb = $("#chipScrollThumb");
-  if (!bar || !thumb) return;
-  const scrollable = bar.scrollWidth - bar.clientWidth;
-  if (scrollable <= 2) { thumb.style.width = "100%"; thumb.style.transform = "translateX(0)"; return; }
-  const thumbPct = Math.max(12, (bar.clientWidth / bar.scrollWidth) * 100);
-  const travelPct = 100 - thumbPct;
-  const scrolledFrac = bar.scrollLeft / scrollable;
-  thumb.style.width = thumbPct + "%";
-  thumb.style.transform = `translateX(${(scrolledFrac * travelPct * bar.clientWidth) / 100}px)`;
+  const previous = $("#chipNavPrev");
+  const next = $("#chipNavNext");
+  if (!bar || !previous || !next) return;
+  const maxScroll = Math.max(0, bar.scrollWidth - bar.clientWidth);
+  previous.disabled = maxScroll <= 2 || bar.scrollLeft <= 2;
+  next.disabled = maxScroll <= 2 || bar.scrollLeft >= maxScroll - 2;
 }
 
-function setupChipScrollIndicator() {
+function setupChipScrollControls() {
   const bar = $("#chipBar");
   if (!bar) return;
-  bar.addEventListener("scroll", updateChipScrollThumb, { passive: true });
-  window.addEventListener("resize", updateChipScrollThumb);
+  const previous = $("#chipNavPrev");
+  const next = $("#chipNavNext");
+  const scrollByPage = (direction) => bar.scrollBy({ left: direction * Math.max(220, bar.clientWidth * 0.7), behavior: "smooth" });
+  previous?.addEventListener("click", () => scrollByPage(-1));
+  next?.addEventListener("click", () => scrollByPage(1));
+  bar.addEventListener("scroll", updateChipScrollArrows, { passive: true });
+  window.addEventListener("resize", updateChipScrollArrows);
+  updateChipScrollArrows();
 }
 
 // ── keep the channel-list sidebar the same height as the player, with its
@@ -1403,7 +1408,7 @@ async function init() {
   setupSearch();
   setupHelpDrawer();
   setupServerFilterMenu();
-  setupChipScrollIndicator();
+  setupChipScrollControls();
   setupPaneHeightSync();
   setupPlayerControls();
   startBSTClockEngine();
