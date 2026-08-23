@@ -5,13 +5,16 @@
 const M3U_URL = "https://raw.githubusercontent.com/shiptv75/SHIPTV/main/playlist.m3u";
 const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const JSON_PLAYLIST_URL = "https://raw.githubusercontent.com/hossainhridoyx/HridoyTV_Server/refs/heads/main/channels.json";
+const M3U_URL_TAPMAD = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
+const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
+const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
   { url: JSON_PLAYLIST_URL, type: "json", source: "HridoyTV" },
-  { url: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u", type: "m3u", source: "Tapmad BD" },
-  { url: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u", type: "m3u", source: "Fancode" },
-  { url: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u", type: "m3u", source: "Xn IPTV" },
+  { url: M3U_URL_TAPMAD, type: "m3u", source: "Tapmad-BD" },
+  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
+  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 const CORS_PROXIES = [
@@ -269,7 +272,7 @@ const ADMIN_PINNED_NAMES = [
 const ADMIN_PINNED_SLUGS = ADMIN_PINNED_NAMES.map(slugify);
 
 const CATEGORY_DEFS = [
-  { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket/i },
+  { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
   { key: "news", label: "📰 News", match: /news/i },
   { key: "bangla", label: "🇧🇩 Bangla", match: /^bangla$|bangladeshi/i },
   { key: "indian_bangla", label: "🇮🇳 Indian Bangla", match: /indian.?bangla|kolkata/i },
@@ -481,30 +484,29 @@ function renderChipBar() {
   bar.querySelectorAll(".chip").forEach((btn) => {
     btn.addEventListener("click", () => setChip(btn.dataset.key));
   });
-  updateChipScrollArrows();
+  updateChipArrows();
 }
 
-function updateChipScrollArrows() {
+// ── left/right arrow navigation for the category chip bar ──
+function updateChipArrows() {
   const bar = $("#chipBar");
-  const previous = $("#chipNavPrev");
-  const next = $("#chipNavNext");
-  if (!bar || !previous || !next) return;
-  const maxScroll = Math.max(0, bar.scrollWidth - bar.clientWidth);
-  previous.disabled = maxScroll <= 2 || bar.scrollLeft <= 2;
-  next.disabled = maxScroll <= 2 || bar.scrollLeft >= maxScroll - 2;
+  const left = $("#chipArrowLeft");
+  const right = $("#chipArrowRight");
+  if (!bar || !left || !right) return;
+  const scrollable = bar.scrollWidth - bar.clientWidth;
+  left.classList.toggle("hidden", bar.scrollLeft <= 4);
+  right.classList.toggle("hidden", scrollable <= 4 || bar.scrollLeft >= scrollable - 4);
 }
 
-function setupChipScrollControls() {
+function setupChipScrollIndicator() {
   const bar = $("#chipBar");
+  const left = $("#chipArrowLeft");
+  const right = $("#chipArrowRight");
   if (!bar) return;
-  const previous = $("#chipNavPrev");
-  const next = $("#chipNavNext");
-  const scrollByPage = (direction) => bar.scrollBy({ left: direction * Math.max(220, bar.clientWidth * 0.7), behavior: "smooth" });
-  previous?.addEventListener("click", () => scrollByPage(-1));
-  next?.addEventListener("click", () => scrollByPage(1));
-  bar.addEventListener("scroll", updateChipScrollArrows, { passive: true });
-  window.addEventListener("resize", updateChipScrollArrows);
-  updateChipScrollArrows();
+  bar.addEventListener("scroll", updateChipArrows, { passive: true });
+  window.addEventListener("resize", updateChipArrows);
+  left?.addEventListener("click", () => bar.scrollBy({ left: -220, behavior: "smooth" }));
+  right?.addEventListener("click", () => bar.scrollBy({ left: 220, behavior: "smooth" }));
 }
 
 // ── keep the channel-list sidebar the same height as the player, with its
@@ -1408,7 +1410,7 @@ async function init() {
   setupSearch();
   setupHelpDrawer();
   setupServerFilterMenu();
-  setupChipScrollControls();
+  setupChipScrollIndicator();
   setupPaneHeightSync();
   setupPlayerControls();
   startBSTClockEngine();
