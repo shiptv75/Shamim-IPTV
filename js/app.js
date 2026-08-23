@@ -919,8 +919,12 @@ function cvLoadStreamSource(rawUrl) {
     });
     activeHlsEngineInstance.on(Hls.Events.LEVEL_SWITCHED, (evt, data) => {
       const lvl = activeHlsEngineInstance.levels[data.level];
-      const badge = $("#cv-quality-badge");
-      if (badge && lvl) badge.textContent = lvl.height ? lvl.height + "p" : "Auto";
+      // when in Auto mode, show the resolution HLS actually picked right on
+      // the "Auto" option itself instead of a separate badge next to it
+      if (qsel && qsel.value === "-1" && lvl) {
+        const autoOpt = qsel.querySelector('option[value="-1"]');
+        if (autoOpt) autoOpt.textContent = "Auto (" + (lvl.height ? lvl.height + "p" : "…") + ")";
+      }
     });
     activeHlsEngineInstance.on(Hls.Events.ERROR, (evt, data) => {
       if (!data.fatal) return;
@@ -1417,7 +1421,7 @@ async function init() {
     applyFilters();
     renderResumeRow();
 
-    setSplashProgress(100, `${CHANNELS.length}টি চ্যানেল প্রস্তুত`);
+    setSplashProgress(100, "");
     setTimeout(hideSplash, 350);
   } catch (e) {
     setSplashProgress(100, "লোড ব্যর্থ হয়েছে — আবার চেষ্টা করা হচ্ছে");

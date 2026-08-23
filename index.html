@@ -125,9 +125,7 @@
             </div>
             <div class="cv-controls-row">
               <button class="cv-btn" id="cv-prev-btn" onclick="cvPlayPrev()" title="Previous"><i class="fa-solid fa-backward-step"></i></button>
-              <button class="cv-btn cv-btn-rw" onclick="cvRewind()" title="Rewind 10s"><i class="fa-solid fa-backward"></i></button>
               <button class="cv-btn" id="cv-play-btn" onclick="cvTogglePlay()" title="Play/Pause (Space)"><i class="fa-solid fa-play" id="cv-play-icon"></i></button>
-              <button class="cv-btn cv-btn-ff" onclick="cvFastForward()" title="Fast Forward 10s"><i class="fa-solid fa-forward"></i></button>
               <button class="cv-btn" id="cv-next-btn" onclick="cvPlayNext()" title="Next"><i class="fa-solid fa-forward-step"></i></button>
               <button class="cv-btn cv-btn-live" id="cv-golive-btn" onclick="cvGoLive()" style="display:none;" title="Jump to Live">&#9679; LIVE</button>
               <div class="cv-vol-wrap">
@@ -138,7 +136,6 @@
               <select class="cv-quality-select" disabled="disabled" id="cv-quality-select" onchange="cvSetQuality(this.value)">
                 <option value="-1">Auto</option>
               </select>
-              <span class="cv-quality-badge" id="cv-quality-badge">Auto</span>
               <button class="cv-btn cv-btn-screenshot" onclick="cvTakeScreenshot()" title="Screenshot (S)"><i class="fa-solid fa-camera"></i></button>
               <button class="cv-btn cv-btn-pip" onclick="cvTogglePip()" title="Picture in Picture (P)"><i class="fa-solid fa-clone"></i></button>
               <button class="cv-btn cv-btn-fs" onclick="cvToggleFullscreen()" title="Fullscreen (F)"><i class="fa-solid fa-expand" id="cv-fs-icon"></i></button>
