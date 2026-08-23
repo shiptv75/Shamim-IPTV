@@ -502,6 +502,32 @@ function setupChipScrollIndicator() {
   window.addEventListener("resize", updateChipScrollThumb);
 }
 
+// ── keep the channel-list sidebar the same height as the player, with its
+// own internal scrollbar, instead of stretching the whole page (desktop only) ──
+function syncPaneHeights() {
+  const playerPane = $("#playerPane");
+  const channelPane = document.querySelector(".channel-pane");
+  if (!playerPane || !channelPane) return;
+
+  if (window.innerWidth <= 860) {
+    channelPane.style.maxHeight = "";
+    channelPane.style.overflowY = "";
+    return;
+  }
+  channelPane.style.maxHeight = playerPane.offsetHeight + "px";
+  channelPane.style.overflowY = "auto";
+}
+
+function setupPaneHeightSync() {
+  const playerPane = $("#playerPane");
+  if (!playerPane) return;
+  syncPaneHeights();
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => syncPaneHeights()).observe(playerPane);
+  }
+  window.addEventListener("resize", syncPaneHeights);
+}
+
 function setChip(key) {
   currentChip = key;
   $$(".chip").forEach((c) => c.classList.toggle("active", c.dataset.key === key));
@@ -1374,6 +1400,7 @@ async function init() {
   setupHelpDrawer();
   setupServerFilterMenu();
   setupChipScrollIndicator();
+  setupPaneHeightSync();
   setupPlayerControls();
   startBSTClockEngine();
 
@@ -1399,36 +1426,3 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
-// ==========================================
-// SYNC CHANNEL PANE HEIGHT WITH PLAYER PANE
-// ==========================================
-function syncChannelPaneHeight() {
-  const playerPane = document.getElementById('playerPane');
-  const channelPane = document.querySelector('.channel-pane');
-
-  if (window.innerWidth >= 992 && playerPane && channelPane) {
-    // প্লেয়ারের মোট হাইট (ফুটার সহ) নিয়ে রাইট সাইডবারে সেট করা
-    const playerHeight = playerPane.offsetHeight;
-    channelPane.style.height = `${playerHeight}px`;
-    channelPane.style.maxHeight = `${playerHeight}px`;
-  } else if (channelPane) {
-    // মোবাইলে হাইট রিমুভ রাখা
-    channelPane.style.height = 'auto';
-    channelPane.style.maxHeight = 'none';
-  }
-}
-
-// পেজ লোড এবং উইন্ডো রিসাইজ হলে সিঙ্ক হবে
-window.addEventListener('load', syncChannelPaneHeight);
-window.addEventListener('resize', syncChannelPaneHeight);
-
-// প্লেয়ারের সাইজ পরিবর্তন হলেও নিজে থেকেই অ্যাডজাস্ট করবে
-const playerResizeObserver = new ResizeObserver(() => {
-  syncChannelPaneHeight();
-});
-
-const playerTarget = document.getElementById('playerPane');
-if (playerTarget) {
-  playerResizeObserver.observe(playerTarget);
-}
