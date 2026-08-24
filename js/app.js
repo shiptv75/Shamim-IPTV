@@ -247,7 +247,8 @@ async function fetchPlaylist() {
 // ---------- Splash ----------
 function setSplashProgress(pct, msg) {
   $("#splashFill").style.width = pct + "%";
-  if (msg) $(".splash-sub").textContent = msg;
+  // splash-sub text element was removed for a more minimal splash screen;
+  // msg is still passed in by callers but simply ignored now.
 }
 function hideSplash() {
   const splash = $("#splash");
@@ -505,8 +506,23 @@ function setupChipScrollIndicator() {
   if (!bar) return;
   bar.addEventListener("scroll", updateChipArrows, { passive: true });
   window.addEventListener("resize", updateChipArrows);
+  window.addEventListener("load", updateChipArrows);
   left?.addEventListener("click", () => bar.scrollBy({ left: -220, behavior: "smooth" }));
   right?.addEventListener("click", () => bar.scrollBy({ left: 220, behavior: "smooth" }));
+
+  // the chip bar's true scrollWidth isn't reliable until fonts/layout fully
+  // settle right after first paint — a ResizeObserver plus a couple of
+  // deferred checks make sure the arrow shows up correctly on first load,
+  // not only after a manual zoom-out/zoom-in forces a reflow.
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => updateChipArrows()).observe(bar);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(updateChipArrows));
+  setTimeout(updateChipArrows, 300);
+  setTimeout(updateChipArrows, 1000);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(updateChipArrows);
+  }
 }
 
 // ── keep the channel-list sidebar the same height as the player, with its
