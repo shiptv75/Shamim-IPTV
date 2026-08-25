@@ -261,16 +261,31 @@ function hideSplash() {
 }
 
 // ---------- Category mapping + chip bar ----------
-// Admin-curated "Pinned" channels — edit this list to control which
-// channels show up under the 📌 Pinned category. Match is by channel name
-// (case-insensitive, spaces/punctuation ignored), so "T Sports" and
-// "t-sports" both match an entry of "T Sports".
-const ADMIN_PINNED_NAMES = [
-  // "T Sports",
-  // "Gazi TV",
-  // "Somoy TV",
-];
-const ADMIN_PINNED_SLUGS = ADMIN_PINNED_NAMES.map(slugify);
+// Admin config: a small JSON file in the same GitHub repo (NOT in code) —
+// edit it directly on GitHub's website to control which channels are
+// pinned or hidden, site-wide, for every visitor. No code changes, no
+// redeploy of index.html/app.js/style.css ever needed for this.
+// File shape: { "pinned": ["T Sports", "Gazi TV"], "hidden": ["Some Channel"] }
+// Matching is by channel name, case-insensitive, spaces/punctuation ignored.
+const ADMIN_CONFIG_URL = "https://raw.githubusercontent.com/shiptv75/Obiram/main/admin-config.json";
+let ADMIN_PINNED_SLUGS = [];
+let ADMIN_HIDDEN_SLUGS = [];
+
+async function fetchAdminConfig() {
+  for (const wrap of CORS_PROXIES) {
+    try {
+      const res = await fetch(wrap(ADMIN_CONFIG_URL), { cache: "no-store" });
+      if (!res.ok) continue;
+      const data = await res.json();
+      ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
+      ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
+      return;
+    } catch {
+      continue;
+    }
+  }
+  // file missing or unreachable — just proceed with no pinned/hidden channels
+}
 
 const CATEGORY_DEFS = [
   { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
@@ -1417,6 +1432,31 @@ function startBSTClockEngine() {
   setInterval(updateClock, 1000);
 }
 
+// ── real-time visitor counter, backed by a Cloudflare Worker + KV ──
+// (a static site alone has no shared memory across visitors' browsers, so
+// an accurate count needs a small server-side counter — see WORKER-README.md
+// for the one-time setup). Fill in the deployed Worker URL below.
+const VISITOR_COUNTER_API = ""; // e.g. "https://shamim-visitor-counter.YOUR-SUBDOMAIN.workers.dev"
+const VISITOR_SESSION_FLAG = "shamim_visit_counted_session";
+
+async function initVisitorCounter() {
+  const textEl = $("#visitorCountText");
+  if (!textEl) return;
+  if (!VISITOR_COUNTER_API) { textEl.textContent = "সেটআপ বাকি"; return; }
+
+  try {
+    const alreadyCountedThisSession = sessionStorage.getItem(VISITOR_SESSION_FLAG);
+    const endpoint = alreadyCountedThisSession ? `${VISITOR_COUNTER_API}/count` : `${VISITOR_COUNTER_API}/hit`;
+    const res = await fetch(endpoint, { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status");
+    const data = await res.json();
+    if (!alreadyCountedThisSession) sessionStorage.setItem(VISITOR_SESSION_FLAG, "1");
+    textEl.textContent = Number(data.count || 0).toLocaleString("en-US");
+  } catch {
+    textEl.textContent = "—";
+  }
+}
+
 function setupPlayerControls() {
   // (no-op: player is now a persistent pane, not a closable modal)
 }
@@ -1430,12 +1470,13 @@ async function init() {
   setupPaneHeightSync();
   setupPlayerControls();
   startBSTClockEngine();
+  initVisitorCounter();
 
   setSplashProgress(20, "প্লেলিস্ট আনা হচ্ছে…");
   try {
-    const results = await fetchPlaylist();
+    const [results] = await Promise.all([fetchPlaylist(), fetchAdminConfig()]);
     setSplashProgress(65, "চ্যানেল সাজানো হচ্ছে…");
-    CHANNELS = mergeAllChannels(results);
+    CHANNELS = mergeAllChannels(results).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
     if (!CHANNELS.length) throw new Error("empty");
 
     buildGroups();
