@@ -1436,7 +1436,7 @@ function startBSTClockEngine() {
 // (a static site alone has no shared memory across visitors' browsers, so
 // an accurate count needs a small server-side counter — see WORKER-README.md
 // for the one-time setup). Fill in the deployed Worker URL below.
-const VISITOR_COUNTER_API = ""; // e.g. "https://shamim-visitor-counter.YOUR-SUBDOMAIN.workers.dev"
+const VISITOR_COUNTER_API = "https://shamim-visitor-counter.iamshamimhasan.workers.dev"; // e.g. "https://shamim-visitor-counter.YOUR-SUBDOMAIN.workers.dev"
 const VISITOR_SESSION_FLAG = "shamim_visit_counted_session";
 
 async function initVisitorCounter() {
