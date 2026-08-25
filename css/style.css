@@ -299,10 +299,19 @@ a{ color: inherit; text-decoration: none; }
   display:flex; align-items:center; justify-content:space-between; gap:16px;
 }
 .footer-side{ flex: 0 0 auto; min-width:110px; }
-.footer-left{
+.footer-left{ display:flex; align-items:center; }
+.footer-right{ display:flex; align-items:center; justify-content:flex-end; gap:12px; }
+.footer-version{
   font-family: var(--font-mono); font-size:11.5px; color: var(--muted); letter-spacing:.5px;
 }
-.footer-right{ display:flex; justify-content:flex-end; }
+.visitor-counter{
+  display:flex; align-items:center; gap:6px;
+  padding: 7px 13px; border-radius:999px;
+  background: var(--surface-2); border:1px solid var(--line); color: var(--muted);
+  font-family: var(--font-mono); font-size:11.5px;
+}
+.visitor-counter svg{ color: var(--glow); flex-shrink:0; }
+.visitor-counter #visitorCountText{ color: var(--text); font-weight:700; }
 .footer-center{
   flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;
 }
