@@ -43,6 +43,10 @@
     </div>
 
     <div class="topbar-right">
+      <button id="offToggleBtn" class="off-toggle-btn" title="অফ চ্যানেলও দেখাও" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path class="off-toggle-slash" d="M3 3l18 18"/></svg>
+        <span class="only-desktop-label off-toggle-label">শুধু চালু</span>
+      </button>
       <div class="server-filter-wrap">
         <button id="serverFilterBtn" class="server-filter-btn" title="সার্ভার/সোর্স ফিল্টার">
           <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="4" width="18" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="18" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></svg>
@@ -165,13 +169,23 @@
         <div class="row-scroll" id="resumeRow"></div>
       </section>
 
+      <!-- Live status sweep progress -->
+      <div id="scanProgress" class="scan-progress hidden">
+        <div class="scan-progress-top">
+          <span class="scan-spinner" aria-hidden="true"></span>
+          <span id="scanProgressText">চ্যানেল চেক করা হচ্ছে…</span>
+        </div>
+        <div class="scan-progress-track"><div class="scan-progress-fill" id="scanProgressFill"></div></div>
+      </div>
+
       <!-- Grid -->
       <div class="grid icon-grid" id="mainGrid"></div>
 
       <div id="emptyState" class="empty-state hidden">
         <div class="empty-mark">📡</div>
         <p id="emptyStateText">কোনো চ্যানেল পাওয়া যায়নি</p>
-        <span>অন্য নামে খুঁজে দেখুন</span>
+        <span id="emptyStateHint">অন্য নামে খুঁজে দেখুন</span>
+        <button id="emptyRevealOff" class="empty-reveal-btn hidden">অফ চ্যানেলগুলোও দেখাও</button>
       </div>
     </div>
   </div>
