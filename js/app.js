@@ -327,7 +327,21 @@ function buildGroups() {
 const LIVE_CACHE_KEY = "obiram_stream_status";
 const LIVE_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
 const LIVE_CHECK_TIMEOUT = 7000;
-const MAX_CONCURRENT_PROBES = 4;
+// Raised from 4: every channel now gets swept in the background (not just the
+// ones scrolled into view), so the whole list has to finish in a sane amount
+// of time. 6 channels x up to 3 parallel source probes = ~18 in-flight
+// requests worst case, which stays within what mobile browsers handle happily.
+const MAX_CONCURRENT_PROBES = 6;
+// Only probe the first few merged sources of a channel. Beyond three it is
+// almost always the same stream mirrored again, and each extra URL costs a
+// full timeout on dead channels.
+const MAX_SOURCES_PER_PROBE = 3;
+// How often to look for channels whose cached status has gone stale, so a
+// channel that comes back online un-hides itself without a page reload.
+const RECHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+// Grid is re-listed at most this often while statuses stream in, so hundreds
+// of resolving probes can't cause hundreds of re-renders.
+const RELIST_THROTTLE = 700;
 
 let liveStatusCache = loadJSON(LIVE_CACHE_KEY, {});
 let activeProbes = 0;
@@ -389,11 +403,7 @@ async function probeViaFetch(url) {
   }
 }
 
-// Tries every merged source URL in order (not just the first). This is the
-// key fix for "dead on one source, alive on another": since a channel card
-// now bundles all sources together, the badge should read ON as long as at
-// least one of them actually plays — matching what the server-switch
-// dropdown in the player can already fall back to.
+// Probes a single stream URL the same way the player itself would load it.
 async function probeOneUrl(url) {
   try {
     if (/\.m3u8(\?|$)/i.test(url)) {
@@ -406,16 +416,39 @@ async function probeOneUrl(url) {
   }
 }
 
+// Tries every merged source URL, all at once rather than one after another.
+// This is what makes auto-hiding practical: a channel with 3 dead sources used
+// to burn 3 x 7s = 21s before it could be called OFF, so a few hundred
+// channels took forever to classify. Racing them caps a channel at roughly a
+// single timeout, and the answer is identical — the badge reads ON as long as
+// at least one source actually plays, matching what the server-switch dropdown
+// in the player can fall back to.
+function probeAnySource(urls) {
+  return new Promise((resolve) => {
+    const list = (urls || []).slice(0, MAX_SOURCES_PER_PROBE);
+    if (!list.length) { resolve(false); return; }
+    let pending = list.length;
+    let settled = false;
+    list.forEach((url) => {
+      probeOneUrl(url)
+        .catch(() => false)
+        .then((ok) => {
+          if (settled) return;
+          if (ok) { settled = true; resolve(true); return; }
+          pending -= 1;
+          if (pending === 0) { settled = true; resolve(false); }
+        });
+    });
+  });
+}
+
 async function probeChannelStatus(chan) {
   if (chan.isOff) return; // never override an authoritative source-level off
-  let ok = false;
-  for (const url of chan.sources) {
-    ok = await probeOneUrl(url);
-    if (ok) break; // first working source is enough to mark the whole channel ON
-  }
+  const ok = await probeAnySource(chan.sources);
   chan.liveStatus = ok ? "on" : "off";
   setCachedStatus(chan, chan.liveStatus);
   updateCardStatusBadge(chan);
+  onStatusResolved();
 }
 
 function updateCardStatusBadge(chan) {
@@ -442,15 +475,91 @@ function statusText(status) {
 function runProbeQueue() {
   while (activeProbes < MAX_CONCURRENT_PROBES && probeQueue.length) {
     const chan = probeQueue.shift();
+    chan._queued = false;
     if (chan.liveStatus !== "checking") continue;
     activeProbes++;
     probeChannelStatus(chan).finally(() => { activeProbes--; runProbeQueue(); });
   }
 }
-function enqueueProbe(chan) {
+
+// `priority` pushes a channel to the front — used for cards the visitor can
+// actually see right now, so those resolve first even mid-sweep.
+function enqueueProbe(chan, priority) {
   if (chan.liveStatus !== "checking") return;
-  probeQueue.push(chan);
+  if (chan._queued) {
+    if (priority) {
+      const i = probeQueue.indexOf(chan);
+      if (i > 0) { probeQueue.splice(i, 1); probeQueue.unshift(chan); }
+    }
+    return;
+  }
+  chan._queued = true;
+  if (priority) probeQueue.unshift(chan);
+  else probeQueue.push(chan);
   runProbeQueue();
+}
+
+// ---------- Background sweep: classify every channel, not just visible ones ----------
+// Off channels are hidden from the grid, which breaks the old lazy model: a
+// hidden card never scrolls into view, so it would never be re-probed and could
+// never come back once it went OFF. Sweeping the whole list in the background
+// fixes that and is also what makes the channel counter honest — it can only
+// count "channels that are actually on" if every channel has been checked.
+function startStatusSweep() {
+  const pending = CHANNELS.filter((c) => c.liveStatus === "checking" && !c._queued);
+  if (!pending.length) { updateScanProgress(); return; }
+  // Pinned first, then the visitor's favourites, then the rest in list order —
+  // so the channels someone is most likely to want appear soonest.
+  const favs = loadJSON(LS_FAV, []);
+  const rank = (c) => (c.isPinned ? 0 : favs.includes(c.id) ? 1 : 2);
+  pending.sort((a, b) => rank(a) - rank(b));
+  pending.forEach((c) => { c._queued = true; probeQueue.push(c); });
+  updateScanProgress();
+  runProbeQueue();
+}
+
+// Derived from live channel state rather than a running tally, so it can never
+// drift out of sync across repeated sweeps.
+function scanStats() {
+  let done = 0;
+  CHANNELS.forEach((c) => { if (c.liveStatus !== "checking") done++; });
+  return { done, total: CHANNELS.length };
+}
+
+function updateScanProgress() {
+  const wrap = $("#scanProgress");
+  if (!wrap) return;
+  const { done, total } = scanStats();
+  if (!total || done >= total) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const fill = $("#scanProgressFill");
+  if (fill) fill.style.width = Math.round((done / total) * 100) + "%";
+  const text = $("#scanProgressText");
+  if (text) text.textContent = `চ্যানেল চেক করা হচ্ছে… ${done}/${total}`;
+}
+
+function onStatusResolved() {
+  updateScanProgress();
+  scheduleRelist();
+}
+
+// Every ~5 minutes, hand back to the sweep any channel whose cached status has
+// expired. A channel that has come back online flips to ON and un-hides itself
+// on its own; one that went down disappears. Skipped while the tab is in the
+// background so it never burns a visitor's data when nobody is looking.
+function startPeriodicRecheck() {
+  setInterval(() => {
+    if (document.hidden) return;
+    let revived = 0;
+    CHANNELS.forEach((c) => {
+      if (c.isOff) return;                  // source says it's down — authoritative
+      if (c.liveStatus === "checking" || c._queued) return;
+      if (getCachedStatus(c)) return;       // cached status still fresh
+      c.liveStatus = "checking";
+      revived++;
+    });
+    if (revived) startStatusSweep();
+  }, RECHECK_INTERVAL);
 }
 
 function getStatusObserver() {
@@ -460,7 +569,7 @@ function getStatusObserver() {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
         const chan = CHANNELS.find((c) => c.id === entry.target.dataset.id);
-        if (chan) enqueueProbe(chan);
+        if (chan) enqueueProbe(chan, true); // on screen — jump the sweep queue
         statusObserver.unobserve(entry.target);
       });
     },
@@ -469,15 +578,33 @@ function getStatusObserver() {
   return statusObserver;
 }
 
+// ---------- Off-channel auto-hide (single source of truth) ----------
+// Most channels in the merged playlists are dead at any given moment, so the
+// site lists only the ones whose stream was actually reachable. Everything that
+// shows a channel count or walks the channel list goes through the two helpers
+// below, so the grid, the category chips, the source filter, the player's
+// channel list and prev/next can never disagree with each other.
+const LS_SHOW_OFF = "obiram_show_off_channels";
+let SHOW_OFF_CHANNELS = loadJSON(LS_SHOW_OFF, false) === true;
+
+function isChannelVisible(chan) {
+  return SHOW_OFF_CHANNELS || chan.liveStatus === "on";
+}
+function visibleChannels() {
+  return CHANNELS.filter(isChannelVisible);
+}
+
 function chipCounts() {
+  const visible = visibleChannels();
+  const visibleIds = new Set(visible.map((c) => c.id));
   const counts = {
-    all: CHANNELS.length,
-    favs: loadJSON(LS_FAV, []).length,
-    pinned: CHANNELS.filter((c) => c.isPinned).length,
+    all: visible.length,
+    favs: loadJSON(LS_FAV, []).filter((id) => visibleIds.has(id)).length,
+    pinned: visible.filter((c) => c.isPinned).length,
     other: 0,
   };
   CATEGORY_DEFS.forEach((d) => (counts[d.key] = 0));
-  CHANNELS.forEach((c) => { counts[c.category] = (counts[c.category] || 0) + 1; });
+  visible.forEach((c) => { counts[c.category] = (counts[c.category] || 0) + 1; });
   return counts;
 }
 
@@ -501,6 +628,16 @@ function renderChipBar() {
     btn.addEventListener("click", () => setChip(btn.dataset.key));
   });
   updateChipArrows();
+}
+
+// Refreshes just the numbers in the chip bar. Rebuilding the whole bar on every
+// resolved probe would reset its horizontal scroll under the visitor's finger.
+function updateChipCounts() {
+  const counts = chipCounts();
+  $$("#chipBar .chip").forEach((btn) => {
+    const cnt = btn.querySelector(".chip-cnt");
+    if (cnt) cnt.textContent = counts[btn.dataset.key] || 0;
+  });
 }
 
 // ── left/right arrow navigation for the category chip bar ──
@@ -617,7 +754,7 @@ function channelCard(chan) {
     e.stopPropagation();
     toggleFav(chan.id);
     e.currentTarget.classList.toggle("on");
-    renderChipBar();
+    updateChipCounts();
     if (currentChip === "favs") applyFilters();
   });
 
@@ -627,12 +764,18 @@ function channelCard(chan) {
 }
 
 // ---------- Server / source filter menu ----------
+function sourceCounts() {
+  const visible = visibleChannels();
+  const counts = { all: visible.length };
+  SOURCE_NAMES.forEach((s) => (counts[s] = 0));
+  visible.forEach((c) => c.sourceTags.forEach((s) => (counts[s] = (counts[s] || 0) + 1)));
+  return counts;
+}
+
 function renderServerFilterMenu() {
   const wrap = $("#serverFilterMenu");
   if (!wrap) return;
-  const counts = { all: CHANNELS.length };
-  SOURCE_NAMES.forEach((s) => (counts[s] = 0));
-  CHANNELS.forEach((c) => c.sourceTags.forEach((s) => (counts[s] = (counts[s] || 0) + 1)));
+  const counts = sourceCounts();
 
   const items = [{ key: "all", label: "🌐 সব সোর্স" }, ...SOURCE_NAMES.map((s) => ({ key: s, label: `🖥️ ${s}` }))];
   wrap.innerHTML = items
@@ -648,6 +791,14 @@ function renderServerFilterMenu() {
       closeServerFilterMenu();
       applyFilters();
     });
+  });
+}
+
+function updateServerFilterCounts() {
+  const counts = sourceCounts();
+  $$("#serverFilterMenu .server-filter-item").forEach((btn) => {
+    const cnt = btn.querySelector(".chip-cnt");
+    if (cnt) cnt.textContent = counts[btn.dataset.key] || 0;
   });
 }
 
@@ -676,25 +827,51 @@ function renderGrid(list) {
 
 function applyFilters() {
   const q = $("#searchInput").value.trim().toLowerCase();
+  // Everything downstream starts from the visible set, so off channels are gone
+  // from the grid, from the category totals and from search results alike.
+  const pool = visibleChannels();
   let list;
-  if (currentChip === "all") list = CHANNELS;
+  if (currentChip === "all") list = pool;
   else if (currentChip === "favs") {
     const favs = loadJSON(LS_FAV, []);
-    list = favs.map((id) => CHANNELS.find((c) => c.id === id)).filter(Boolean);
+    list = favs.map((id) => pool.find((c) => c.id === id)).filter(Boolean);
   } else if (currentChip === "pinned") {
-    list = CHANNELS.filter((c) => c.isPinned);
+    list = pool.filter((c) => c.isPinned);
   } else {
-    list = CHANNELS.filter((c) => c.category === currentChip);
+    list = pool.filter((c) => c.category === currentChip);
   }
 
   if (currentSourceFilter !== "all") list = list.filter((c) => c.sourceTags.has(currentSourceFilter));
 
   if (q) list = list.filter((c) => c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q));
 
+  const { done, total } = scanStats();
+  const stillScanning = total > 0 && done < total;
   const emptyText = $("#emptyStateText");
-  if (currentChip === "favs") emptyText.textContent = "এখনো কোনো প্রিয় চ্যানেল নেই — হার্ট আইকনে ক্লিক করে যোগ করো";
-  else if (currentChip === "pinned") emptyText.textContent = "এখনো কোনো পিন করা চ্যানেল নেই";
-  else emptyText.textContent = "কোনো চ্যানেল পাওয়া যায়নি";
+  const emptyHint = $("#emptyStateHint");
+  const revealBtn = $("#emptyRevealOff");
+  // An empty grid means very different things depending on why it's empty —
+  // say which, and when it's because everything is off, offer a way out
+  // instead of leaving the visitor staring at a dead page.
+  let showReveal = false;
+  if (currentChip === "favs") {
+    emptyText.textContent = "এখনো কোনো প্রিয় চ্যানেল নেই — হার্ট আইকনে ক্লিক করে যোগ করো";
+    if (emptyHint) emptyHint.textContent = "চালু চ্যানেলের হার্টে ক্লিক করুন";
+  } else if (currentChip === "pinned") {
+    emptyText.textContent = "এখনো কোনো পিন করা চ্যানেল নেই";
+    if (emptyHint) emptyHint.textContent = "";
+  } else if (stillScanning && !SHOW_OFF_CHANNELS) {
+    emptyText.textContent = "চ্যানেল স্ট্যাটাস চেক করা হচ্ছে…";
+    if (emptyHint) emptyHint.textContent = "চালু চ্যানেলগুলো একটু পরেই দেখা যাবে";
+  } else if (!q && !SHOW_OFF_CHANNELS && CHANNELS.length) {
+    emptyText.textContent = "এই মুহূর্তে কোনো চ্যানেল চালু নেই";
+    if (emptyHint) emptyHint.textContent = "সব চ্যানেলই এখন বন্ধ দেখাচ্ছে";
+    showReveal = true;
+  } else {
+    emptyText.textContent = "কোনো চ্যানেল পাওয়া যায়নি";
+    if (emptyHint) emptyHint.textContent = "অন্য নামে খুঁজে দেখুন";
+  }
+  if (revealBtn) revealBtn.classList.toggle("hidden", !showReveal);
 
   renderGrid(list);
 }
@@ -706,6 +883,65 @@ function toggleFav(id) {
   saveJSON(LS_FAV, favs);
 }
 
+// ---------- Re-listing as statuses arrive ----------
+// Probes resolve in a steady trickle, so re-listing is throttled instead of
+// run per result, and the pane's scroll offset is restored afterwards — the
+// grid must never jump under someone who is halfway down it.
+let relistTimer = null;
+let relistPending = false;
+
+function scheduleRelist() {
+  if (relistTimer) { relistPending = true; return; }
+  relistTimer = setTimeout(() => {
+    relistTimer = null;
+    const again = relistPending;
+    relistPending = false;
+    relistNow();
+    if (again) scheduleRelist();
+  }, RELIST_THROTTLE);
+}
+
+function relistNow() {
+  const pane = document.querySelector(".channel-pane");
+  const paneScroll = pane ? pane.scrollTop : 0;
+  const pageScroll = window.scrollY;
+
+  updateChipCounts();
+  updateServerFilterCounts();
+  applyFilters();
+  renderResumeRow();
+
+  if (pane) pane.scrollTop = paneScroll;
+  if (window.scrollY !== pageScroll) window.scrollTo(0, pageScroll);
+}
+
+// ---------- "Show off channels" toggle ----------
+function setupOffChannelToggle() {
+  const btn = $("#offToggleBtn");
+  const revealBtn = $("#emptyRevealOff");
+
+  const sync = () => {
+    if (!btn) return;
+    btn.classList.toggle("on", SHOW_OFF_CHANNELS);
+    btn.setAttribute("aria-pressed", SHOW_OFF_CHANNELS ? "true" : "false");
+    btn.title = SHOW_OFF_CHANNELS ? "অফ চ্যানেল লুকাও" : "অফ চ্যানেলও দেখাও";
+    const label = btn.querySelector(".off-toggle-label");
+    if (label) label.textContent = SHOW_OFF_CHANNELS ? "সব চ্যানেল" : "শুধু চালু";
+  };
+
+  const setShowOff = (val) => {
+    SHOW_OFF_CHANNELS = val;
+    saveJSON(LS_SHOW_OFF, SHOW_OFF_CHANNELS);
+    sync();
+    relistNow();
+    toast(SHOW_OFF_CHANNELS ? "অফ চ্যানেলগুলোও দেখানো হচ্ছে" : "শুধু চালু চ্যানেল দেখানো হচ্ছে");
+  };
+
+  btn?.addEventListener("click", () => setShowOff(!SHOW_OFF_CHANNELS));
+  revealBtn?.addEventListener("click", () => setShowOff(true));
+  sync();
+}
+
 // ---------- Resume row ----------
 function renderResumeRow() {
   const resume = loadJSON(LS_RESUME, null);
@@ -713,6 +949,8 @@ function renderResumeRow() {
   if (!resume) { section.classList.add("hidden"); return; }
   const chan = CHANNELS.find((c) => c.id === resume.id);
   if (!chan) { section.classList.add("hidden"); return; }
+  // Don't dangle a "continue watching" card for a channel that's now off.
+  if (!isChannelVisible(chan)) { section.classList.add("hidden"); return; }
   section.classList.remove("hidden");
   const row = $("#resumeRow");
   row.innerHTML = "";
@@ -1114,18 +1352,28 @@ function cvSetEngine(engine) {
   cvShowToast("Engine: " + (label ? label.textContent : engine));
 }
 
-// ── next/previous channel (cycles through the full channel list) ──
+// ── next/previous channel (cycles through the listed channels only) ──
+// Walks the visible list rather than the raw CHANNELS array, so pressing next
+// can't drop the visitor onto a hidden, dead channel.
+function cvStepChannel(dir) {
+  const list = visibleChannels();
+  if (!list.length) return null;
+  let idx = currentChannel ? list.findIndex((c) => c.id === currentChannel.id) : -1;
+  if (idx === -1) idx = dir > 0 ? -1 : 0; // current channel got hidden — start from the edge
+  const next = list[(idx + dir + list.length) % list.length];
+  return next || null;
+}
 function cvPlayNext() {
-  if (!CHANNELS.length) return;
-  const nextIdx = (activeChannelIndex + 1) % CHANNELS.length;
-  playChannel(CHANNELS[nextIdx]);
-  cvShowToast("⏭ " + CHANNELS[nextIdx].name);
+  const ch = cvStepChannel(1);
+  if (!ch) return;
+  playChannel(ch);
+  cvShowToast("⏭ " + ch.name);
 }
 function cvPlayPrev() {
-  if (!CHANNELS.length) return;
-  const prevIdx = (activeChannelIndex - 1 + CHANNELS.length) % CHANNELS.length;
-  playChannel(CHANNELS[prevIdx]);
-  cvShowToast("⏮ " + CHANNELS[prevIdx].name);
+  const ch = cvStepChannel(-1);
+  if (!ch) return;
+  playChannel(ch);
+  cvShowToast("⏮ " + ch.name);
 }
 
 // ── seek / progress bar ──
@@ -1344,7 +1592,8 @@ function cvRenderFloatChList(query) {
   const body = $("#cv-float-chlist-body");
   if (!body) return;
   const q = (query || "").toLowerCase().trim();
-  const filtered = q ? CHANNELS.filter((c) => c.name.toLowerCase().includes(q)) : CHANNELS;
+  const pool = visibleChannels();
+  const filtered = q ? pool.filter((c) => c.name.toLowerCase().includes(q)) : pool;
   body.innerHTML = "";
   if (!filtered.length) {
     body.innerHTML = `<div style="padding:20px;text-align:center;color:#555;font-size:12px;">No channels found</div>`;
@@ -1436,7 +1685,7 @@ function startBSTClockEngine() {
 // (a static site alone has no shared memory across visitors' browsers, so
 // an accurate count needs a small server-side counter — see WORKER-README.md
 // for the one-time setup). Fill in the deployed Worker URL below.
-const VISITOR_COUNTER_API = "https://shamim-visitor-counter.iamshamimhasan.workers.dev"; // e.g. "https://shamim-visitor-counter.YOUR-SUBDOMAIN.workers.dev"
+const VISITOR_COUNTER_API = "https://shamim-visitor-counter.iamshamimhasan.workers.dev";
 const VISITOR_SESSION_FLAG = "shamim_visit_counted_session";
 
 async function initVisitorCounter() {
@@ -1466,6 +1715,7 @@ async function init() {
   setupSearch();
   setupHelpDrawer();
   setupServerFilterMenu();
+  setupOffChannelToggle();
   setupChipScrollIndicator();
   setupPaneHeightSync();
   setupPlayerControls();
@@ -1484,6 +1734,11 @@ async function init() {
     renderChipBar();
     applyFilters();
     renderResumeRow();
+
+    // Classify every channel in the background so only the live ones stay
+    // listed, and keep re-checking so anything that comes back online returns.
+    startStatusSweep();
+    startPeriodicRecheck();
 
     setSplashProgress(100, "");
     setTimeout(hideSplash, 350);
