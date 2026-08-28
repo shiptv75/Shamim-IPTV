@@ -2,12 +2,12 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
-const M3U_URL = "https://raw.githubusercontent.com/shiptv75/SHIPTV/main/playlist.m3u";
-const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
-const JSON_PLAYLIST_URL = "https://raw.githubusercontent.com/hossainhridoyx/HridoyTV_Server/refs/heads/main/channels.json";
-const M3U_URL_TAPMAD = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
-const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
-const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
+const M3U_URL = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
+const M3U_URL_2 = "https://shamimiptv.pages.dev/api/proxy?playlist=fastiptv&code=554075";
+const JSON_PLAYLIST_URL = "https://shamimiptv.pages.dev/api/proxy?url=" + encodeURIComponent("https://raw.githubusercontent.com/hossainhridoyx/HridoyTV_Server/refs/heads/main/channels.json");
+const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
+const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
+const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
