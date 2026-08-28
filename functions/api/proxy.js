@@ -8,9 +8,8 @@
 const EXPIRE_CODE = "554075";
 
 // ---------------------------------------------------------
-// একাধিক প্লেলিস্ট এখানে যোগ করুন — key হবে শর্টকাট নাম (URL-এ ব্যবহৃত হবে)
-// লিংক হবে: /api/proxy/<key>-554075.m3u
-// যেমন: /api/proxy/shiptv-554075.m3u , /api/proxy/tapmad-554075.m3u
+// একাধিক প্লেলিস্ট এখানে যোগ করুন — key হবে ?playlist= এ ব্যবহৃত নাম
+// লিংক হবে: /api/proxy?playlist=<key>&code=554075
 // ---------------------------------------------------------
 const PLAYLISTS = {
   shiptv: "https://raw.githubusercontent.com/shiptv75/SHIPTV/main/playlist.m3u",
@@ -19,10 +18,9 @@ const PLAYLISTS = {
   fancode: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u",
   xniptv: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u"
   // নোট: HridoyTV সোর্সটি JSON ফরম্যাটে, তাই এই M3U-রিরাইট রুটে যোগ করা হয়নি।
-  // ওটা লাগলে ?url= দিয়ে সরাসরি CORS পাস-থ্রু হিসেবে ব্যবহার করুন (নিচে দেখুন)।
 };
 
-// যদি কেউ পুরনো লিংক (/api/proxy/playlist-...) ব্যবহার করে, সেটা কোন প্লেলিস্ট দেখাবে (ডিফল্ট)
+// playlist প্যারামিটার না দিলে কোনটা দেখাবে (ডিফল্ট)
 const DEFAULT_PLAYLIST_KEY = "shiptv";
 // ===================================================
 
@@ -43,31 +41,23 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const host = url.host;
   const protocol = url.protocol.replace(':', '');
-  const requestUrl = url.pathname + url.search;
   const targetUrlParam = url.searchParams.get('url');
+  const playlistParam = url.searchParams.get('playlist');
+  const codeParam = url.searchParams.get('code');
 
   // ---------------------------------------------------------
   // ১. M3U প্লেলিস্ট রিকোয়েস্ট
-  //    সাপোর্টেড ফরম্যাট:
-  //      /api/proxy/live-554075.m3u      → PLAYLISTS.live
-  //      /api/proxy/movies-554075.m3u    → PLAYLISTS.movies
-  //      /api/proxy/playlist-554075.m3u  → DEFAULT_PLAYLIST_KEY (পুরনো লিংক ব্যাকওয়ার্ড কম্প্যাটিবিলিটি)
+  //    ফরম্যাট: /api/proxy?playlist=shiptv&code=554075
   // ---------------------------------------------------------
-  const m3uFilename = url.pathname.split('/').pop() || '';
-  const m3uMatch = m3uFilename.match(/^([a-zA-Z0-9_]+)(?:-[a-zA-Z0-9]+)?\.m3u8?$/i);
-
-  if (!targetUrlParam && m3uMatch) {
+  if (!targetUrlParam && playlistParam) {
 
     // সিকিউরিটি কোড যাচাইকরণ
-    if (EXPIRE_CODE && !requestUrl.includes(EXPIRE_CODE)) {
+    if (EXPIRE_CODE && codeParam !== EXPIRE_CODE) {
       return jsonResponse({ error: 'Access Denied: Invalid or Expired ID' }, 403);
     }
 
-    // নাম থেকে সঠিক প্লেলিস্ট বের করা ("playlist" মানে ডিফল্ট প্লেলিস্ট)
-    let playlistKey = m3uMatch[1].toLowerCase();
-    if (playlistKey === 'playlist') playlistKey = DEFAULT_PLAYLIST_KEY;
-
-    const selectedPlaylistUrl = PLAYLISTS[playlistKey];
+    const playlistKey = playlistParam.toLowerCase();
+    const selectedPlaylistUrl = PLAYLISTS[playlistKey] || PLAYLISTS[DEFAULT_PLAYLIST_KEY];
 
     if (!selectedPlaylistUrl) {
       return jsonResponse({ error: `Unknown playlist: "${playlistKey}"` }, 404);
@@ -85,9 +75,8 @@ export async function onRequest(context) {
       }
 
       const content = await response.text();
-      const baseUrl = response.url; // Redirect সামলানোর জন্য
+      const baseUrl = response.url;
 
-      // প্লেলিস্টের প্রতিটি চ্যানেলকে প্রক্সি লিংকে রূপান্তর
       const lines = content.split('\n');
       const rewrittenLines = lines.map(line => {
         const trimmed = line.trim();
@@ -141,7 +130,6 @@ export async function onRequest(context) {
     const contentType = response.headers.get('content-type') || '';
     const finalUrl = response.url;
 
-    // M3U8 বা সাব-প্লেলিস্ট চেক
     const isPlaylist = targetUrl.includes('.m3u') ||
                        contentType.includes('mpegurl') ||
                        contentType.includes('m3u') ||
@@ -156,7 +144,6 @@ export async function onRequest(context) {
           const trimmed = line.trim();
           if (!trimmed) return line;
 
-          // #EXT-X-KEY (AES Encryption) ও #EXT-X-MEDIA ট্যাগের URI প্রক্সি রিরাইট
           if (trimmed.startsWith('#')) {
             if (trimmed.includes('URI=')) {
               return trimmed.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
@@ -171,7 +158,6 @@ export async function onRequest(context) {
             return line;
           }
 
-          // ভিডিও সেগমেন্ট (.ts) বা সাব-প্লেলিস্ট রিরাইট
           try {
             const abs = new URL(trimmed, finalUrl).href;
             return `${protocol}://${host}/api/proxy?url=${encodeURIComponent(abs)}`;
@@ -198,7 +184,6 @@ export async function onRequest(context) {
       });
     }
 
-    // TS/AAC/MP4 ভিডিও সেগমেন্ট প্লেয়ারে পাঠানো
     const arrayBuffer = await response.arrayBuffer();
     return new Response(arrayBuffer, {
       status: 200,
@@ -214,7 +199,6 @@ export async function onRequest(context) {
   }
 }
 
-// ছোট হেল্পার ফাংশন JSON রেসপন্স তৈরির জন্য
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status,
