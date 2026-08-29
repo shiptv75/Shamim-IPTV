@@ -942,27 +942,92 @@ function setupOffChannelToggle() {
   sync();
 }
 
-// ---------- Resume row ----------
+// ---------- Resume row (Last watched + Tapmad recommendations) ----------
+let _resumeAutoScrollTimer = null;
+
 function renderResumeRow() {
-  const resume = loadJSON(LS_RESUME, null);
   const section = $("#resumeSection");
-  if (!resume) { section.classList.add("hidden"); return; }
-  const chan = CHANNELS.find((c) => c.id === resume.id);
-  if (!chan) { section.classList.add("hidden"); return; }
-  // Don't dangle a "continue watching" card for a channel that's now off.
-  if (!isChannelVisible(chan)) { section.classList.add("hidden"); return; }
-  section.classList.remove("hidden");
   const row = $("#resumeRow");
+
+  // ১. লাস্ট দেখা চ্যানেল বের করা
+  const resume = loadJSON(LS_RESUME, null);
+  let lastWatched = null;
+  if (resume) {
+    const chan = CHANNELS.find((c) => c.id === resume.id);
+    if (chan && isChannelVisible(chan)) lastWatched = chan;
+  }
+
+  // ২. Tapmad প্লেলিস্টের চ্যানেলগুলো বের করা
+  const tapmadChannels = CHANNELS.filter(
+    (c) => c.sourceTags && c.sourceTags.has("Tapmad-BD") && isChannelVisible(c)
+  );
+
+  // ৩. লাস্ট ওয়াচড + Tapmad মিলিয়ে ডুপ্লিকেট বাদ দিয়ে ফাইনাল লিস্ট বানানো
+  const seen = new Set();
+  const finalList = [];
+  if (lastWatched) { finalList.push(lastWatched); seen.add(lastWatched.id); }
+  tapmadChannels.forEach((c) => {
+    if (!seen.has(c.id)) { finalList.push(c); seen.add(c.id); }
+  });
+
+  // কিছুই দেখানোর না থাকলে সেকশন লুকিয়ে ফেলা
+  if (!finalList.length) {
+    section.classList.add("hidden");
+    stopResumeAutoScroll();
+    return;
+  }
+
+  section.classList.remove("hidden");
   row.innerHTML = "";
-  const card = document.createElement("div");
-  card.className = "resume-card";
-  card.innerHTML = `
-    <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
-    <div class="rc-name">${chan.name}</div>
-    <div class="rc-grp">${chan.group}</div>
-  `;
-  card.addEventListener("click", () => openPlayer(chan));
-  row.appendChild(card);
+
+  finalList.forEach((chan) => {
+    const card = document.createElement("div");
+    card.className = "resume-card";
+    card.innerHTML = `
+      <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
+      <div class="rc-name">${chan.name}</div>
+      <div class="rc-grp">${chan.group}</div>
+    `;
+    card.addEventListener("click", () => openPlayer(chan));
+    row.appendChild(card);
+  });
+
+  // ৪. একাধিক চ্যানেল থাকলে auto-scroll চালু করা
+  if (finalList.length > 1) {
+    startResumeAutoScroll(row);
+  } else {
+    stopResumeAutoScroll();
+  }
+}
+
+function startResumeAutoScroll(row) {
+  stopResumeAutoScroll();
+
+  let paused = false;
+  row.addEventListener("mouseenter", () => (paused = true));
+  row.addEventListener("mouseleave", () => (paused = false));
+  row.addEventListener("touchstart", () => (paused = true), { passive: true });
+  row.addEventListener("touchend", () => setTimeout(() => (paused = false), 2000), { passive: true });
+
+  _resumeAutoScrollTimer = setInterval(() => {
+    if (paused) return;
+    const maxScroll = row.scrollWidth - row.clientWidth;
+    if (maxScroll <= 0) return;
+
+    if (row.scrollLeft >= maxScroll - 2) {
+      // শেষ পর্যন্ত পৌঁছালে শুরুতে ফিরে যাওয়া
+      row.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      row.scrollBy({ left: 160, behavior: "smooth" });
+    }
+  }, 3000);
+}
+
+function stopResumeAutoScroll() {
+  if (_resumeAutoScrollTimer) {
+    clearInterval(_resumeAutoScrollTimer);
+    _resumeAutoScrollTimer = null;
+  }
 }
 
 function saveResume(chan) {
