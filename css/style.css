@@ -59,7 +59,7 @@ a{ color: inherit; text-decoration: none; }
 .splash{
   position:fixed; inset:0; z-index:200;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
-  background: radial-gradient(ellipse 900px 700px at 50% 32%, rgba(13,158,63,.30), transparent 65%), var(--void);
+  background: #000000; /* একদম প্লেইন কালো, কোনো গ্রেডিয়েন্ট/গ্লো নেই */
   overflow:hidden;
 }
 .splash-mark{ position:relative; width:min(58vw, 240px); height:min(58vw, 240px); display:flex; align-items:center; justify-content:center; }
@@ -68,25 +68,19 @@ a{ color: inherit; text-decoration: none; }
   background: linear-gradient(145deg, var(--sig), var(--sig-2));
   display:flex; align-items:center; justify-content:center;
   font-family: var(--font-display); font-weight:900; font-size:26px; color:#fff;
-  box-shadow: 0 0 40px rgba(233,79,196,.45);
 }
 .mini-mark{ width:44px; height:44px; font-size:19px; }
 .splash-logo-img{
   width:100%; height:100%; object-fit:contain;
-  filter: drop-shadow(0 0 34px rgba(13,158,63,.55));
+  /* কোনো glow/drop-shadow নেই — রেগুলার স্ট্যাটিক লোগো */
   position:relative; z-index:1;
 }
 .splash-sub{ color: var(--muted); font-size:13px; font-family: var(--font-mono); letter-spacing:.5px; }
-.splash-bar{ width:210px; height:4px; background: var(--surface-2); border-radius:4px; overflow:visible; position:relative; }
+.splash-bar{ width:210px; height:4px; background: var(--surface-2); border-radius:4px; overflow:hidden; position:relative; }
 .splash-bar-fill{
   height:100%; width:0%; border-radius:4px;
-  background: linear-gradient(90deg, var(--sig), var(--glow));
+  background: #ffffff; /* সাদা সলিড প্রগ্রেস বার, চাইলে var(--sig) দিয়ে সবুজ রাখতে পারেন */
   transition: width .3s ease; position:relative;
-}
-.splash-bar-fill::after{
-  content:""; position:absolute; right:-4px; top:50%; transform: translateY(-50%);
-  width:11px; height:11px; border-radius:50%; background: var(--glow);
-  box-shadow: 0 0 14px 3px rgba(34,197,94,.75);
 }
 
 /* ============ TOPBAR ============ */
