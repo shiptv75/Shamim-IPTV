@@ -7,9 +7,6 @@
 <meta name="description" content="বাংলাদেশ ও ভারতের সব লাইভ টিভি চ্যানেল, খেলা, খবর ও সিনেমা এক জায়গায়।">
 <meta name="theme-color" content="#0d9e3f">
 
-<link rel="icon" type="image/png" href="https://i.ibb.co.com/Q3VL4K53/file-00000000c92082099fe48b638272072c.png">
-<link rel="apple-touch-icon" href="https://i.ibb.co.com/Q3VL4K53/file-00000000c92082099fe48b638272072c.png">
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -46,9 +43,9 @@
     </div>
 
     <div class="topbar-right">
-      <button id="hideOffToggle" class="server-filter-btn" title="বন্ধ চ্যানেল লুকান">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-        <span class="only-desktop-label" id="hideOffLabel">বন্ধ চ্যানেল</span>
+      <button id="offToggleBtn" class="off-toggle-btn" title="অফ চ্যানেলও দেখাও" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path class="off-toggle-slash" d="M3 3l18 18"/></svg>
+        <span class="only-desktop-label off-toggle-label">শুধু চালু</span>
       </button>
       <div class="server-filter-wrap">
         <button id="serverFilterBtn" class="server-filter-btn" title="সার্ভার/সোর্স ফিল্টার">
@@ -168,9 +165,18 @@
 
       <!-- Continue watching -->
       <section id="resumeSection" class="row hidden">
-        <h2 class="row-title">Recommended Channels</h2>
+        <h2 class="row-title">যেখানে ছিলেন</h2>
         <div class="row-scroll" id="resumeRow"></div>
       </section>
+
+      <!-- Live status sweep progress -->
+      <div id="scanProgress" class="scan-progress hidden">
+        <div class="scan-progress-top">
+          <span class="scan-spinner" aria-hidden="true"></span>
+          <span id="scanProgressText">চ্যানেল চেক করা হচ্ছে…</span>
+        </div>
+        <div class="scan-progress-track"><div class="scan-progress-fill" id="scanProgressFill"></div></div>
+      </div>
 
       <!-- Grid -->
       <div class="grid icon-grid" id="mainGrid"></div>
@@ -178,7 +184,8 @@
       <div id="emptyState" class="empty-state hidden">
         <div class="empty-mark">📡</div>
         <p id="emptyStateText">কোনো চ্যানেল পাওয়া যায়নি</p>
-        <span>অন্য নামে খুঁজে দেখুন</span>
+        <span id="emptyStateHint">অন্য নামে খুঁজে দেখুন</span>
+        <button id="emptyRevealOff" class="empty-reveal-btn hidden">অফ চ্যানেলগুলোও দেখাও</button>
       </div>
     </div>
   </div>
