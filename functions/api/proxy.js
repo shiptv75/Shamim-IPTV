@@ -16,8 +16,8 @@ const PLAYLISTS = {
   fastiptv: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u",
   tapmad: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u",
   fancode: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u",
-  xniptv: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u"
-  // নোট: HridoyTV সোর্সটি JSON ফরম্যাটে, তাই এই M3U-রিরাইট রুটে যোগ করা হয়নি।
+  xniptv: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u",
+  nafitv: "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u"
 };
 
 // playlist প্যারামিটার না দিলে কোনটা দেখাবে (ডিফল্ট)
