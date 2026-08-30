@@ -8,6 +8,7 @@ const JSON_PLAYLIST_URL = "https://shamimiptv.pages.dev/api/proxy?url=" + encode
 const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
 const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
 const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
+const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
@@ -15,6 +16,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_TAPMAD, type: "m3u", source: "Tapmad-BD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 const CORS_PROXIES = [
