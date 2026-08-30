@@ -28,11 +28,13 @@ const CORS_PROXIES = [
 
 const LS_FAV = "obiram_favorites";
 const LS_RESUME = "obiram_resume";
+const LS_HIDE_OFF = "shamim_hide_off_channels";
 
 let CHANNELS = [];      // flat list {id,name,group,logo,sources[]}
 let GROUPS = [];        // ordered unique group names
 let currentChip = "all"; // 'all' | 'favs' | 'pinned' | category key
 let currentSourceFilter = "all"; // 'all' | one of SOURCE_NAMES
+let hideOffChannels = loadJSON(LS_HIDE_OFF, false); // অফলাইন চ্যানেল হাইড টগল
 let currentChannel = null;
 let hls = null;
 let mpegtsPlayer = null;
@@ -472,14 +474,15 @@ function getStatusObserver() {
 }
 
 function chipCounts() {
+  const visible = CHANNELS.filter(isChannelVisible);
   const counts = {
-    all: CHANNELS.length,
+    all: visible.length,
     favs: loadJSON(LS_FAV, []).length,
-    pinned: CHANNELS.filter((c) => c.isPinned).length,
+    pinned: visible.filter((c) => c.isPinned).length,
     other: 0,
   };
   CATEGORY_DEFS.forEach((d) => (counts[d.key] = 0));
-  CHANNELS.forEach((c) => { counts[c.category] = (counts[c.category] || 0) + 1; });
+  visible.forEach((c) => { counts[c.category] = (counts[c.category] || 0) + 1; });
   return counts;
 }
 
@@ -632,9 +635,10 @@ function channelCard(chan) {
 function renderServerFilterMenu() {
   const wrap = $("#serverFilterMenu");
   if (!wrap) return;
-  const counts = { all: CHANNELS.length };
+  const visible = CHANNELS.filter(isChannelVisible);
+  const counts = { all: visible.length };
   SOURCE_NAMES.forEach((s) => (counts[s] = 0));
-  CHANNELS.forEach((c) => c.sourceTags.forEach((s) => (counts[s] = (counts[s] || 0) + 1)));
+  visible.forEach((c) => c.sourceTags.forEach((s) => (counts[s] = (counts[s] || 0) + 1)));
 
   const items = [{ key: "all", label: "🌐 সব সোর্স" }, ...SOURCE_NAMES.map((s) => ({ key: s, label: `🖥️ ${s}` }))];
   wrap.innerHTML = items
@@ -655,6 +659,29 @@ function renderServerFilterMenu() {
 
 function toggleServerFilterMenu() { $("#serverFilterMenu")?.classList.toggle("open"); }
 function closeServerFilterMenu() { $("#serverFilterMenu")?.classList.remove("open"); }
+
+// ---------- Hide off channels toggle ----------
+function updateHideOffButton() {
+  const btn = $("#hideOffToggle");
+  if (!btn) return;
+  btn.classList.toggle("active", hideOffChannels);
+  btn.title = hideOffChannels ? "বন্ধ চ্যানেল দেখান" : "বন্ধ চ্যানেল লুকান";
+  const label = $("#hideOffLabel");
+  if (label) label.textContent = hideOffChannels ? "সব চ্যানেল" : "বন্ধ চ্যানেল";
+}
+
+function setupHideOffToggle() {
+  const btn = $("#hideOffToggle");
+  if (!btn) return;
+  updateHideOffButton();
+  btn.addEventListener("click", () => {
+    hideOffChannels = !hideOffChannels;
+    saveJSON(LS_HIDE_OFF, hideOffChannels);
+    updateHideOffButton();
+    renderChipBar();
+    applyFilters();
+  });
+}
 
 function setupServerFilterMenu() {
   const btn = $("#serverFilterBtn");
@@ -691,6 +718,8 @@ function applyFilters() {
 
   if (currentSourceFilter !== "all") list = list.filter((c) => c.sourceTags.has(currentSourceFilter));
 
+  list = list.filter(isChannelVisible);
+
   if (q) list = list.filter((c) => c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q));
 
   const emptyText = $("#emptyStateText");
@@ -701,6 +730,11 @@ function applyFilters() {
   renderGrid(list);
 }
 
+// একটা চ্যানেল "দেখানোর যোগ্য" কিনা— হাইড-অফ টগল অন থাকলে বন্ধ চ্যানেল বাদ যাবে
+function isChannelVisible(chan) {
+  return !hideOffChannels || chan.liveStatus !== "off";
+}
+
 function toggleFav(id) {
   let favs = loadJSON(LS_FAV, []);
   if (favs.includes(id)) favs = favs.filter((f) => f !== id);
@@ -708,25 +742,91 @@ function toggleFav(id) {
   saveJSON(LS_FAV, favs);
 }
 
-// ---------- Resume row ----------
+// ---------- Resume row (Last watched + Tapmad recommendations) ----------
+let _resumeAutoScrollTimer = null;
+
 function renderResumeRow() {
-  const resume = loadJSON(LS_RESUME, null);
   const section = $("#resumeSection");
-  if (!resume) { section.classList.add("hidden"); return; }
-  const chan = CHANNELS.find((c) => c.id === resume.id);
-  if (!chan) { section.classList.add("hidden"); return; }
-  section.classList.remove("hidden");
   const row = $("#resumeRow");
+
+  // ১. লাস্ট দেখা চ্যানেল বের করা
+  const resume = loadJSON(LS_RESUME, null);
+  let lastWatched = null;
+  if (resume) {
+    const chan = CHANNELS.find((c) => c.id === resume.id);
+    if (chan && isChannelVisible(chan)) lastWatched = chan;
+  }
+
+  // ২. Tapmad প্লেলিস্টের চ্যানেলগুলো বের করা
+  const tapmadChannels = CHANNELS.filter(
+    (c) => c.sourceTags && c.sourceTags.has("Tapmad-BD") && isChannelVisible(c)
+  );
+
+  // ৩. লাস্ট ওয়াচড + Tapmad মিলিয়ে ডুপ্লিকেট বাদ দিয়ে ফাইনাল লিস্ট বানানো
+  const seen = new Set();
+  const finalList = [];
+  if (lastWatched) { finalList.push(lastWatched); seen.add(lastWatched.id); }
+  tapmadChannels.forEach((c) => {
+    if (!seen.has(c.id)) { finalList.push(c); seen.add(c.id); }
+  });
+
+  // কিছুই দেখানোর না থাকলে সেকশন লুকিয়ে ফেলা
+  if (!finalList.length) {
+    section.classList.add("hidden");
+    stopResumeAutoScroll();
+    return;
+  }
+
+  section.classList.remove("hidden");
   row.innerHTML = "";
-  const card = document.createElement("div");
-  card.className = "resume-card";
-  card.innerHTML = `
-    <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
-    <div class="rc-name">${chan.name}</div>
-    <div class="rc-grp">${chan.group}</div>
-  `;
-  card.addEventListener("click", () => openPlayer(chan));
-  row.appendChild(card);
+
+  finalList.forEach((chan) => {
+    const card = document.createElement("div");
+    card.className = "resume-card";
+    card.innerHTML = `
+      <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
+      <div class="rc-name">${chan.name}</div>
+      <div class="rc-grp">${chan.group}</div>
+    `;
+    card.addEventListener("click", () => openPlayer(chan));
+    row.appendChild(card);
+  });
+
+  // ৪. একাধিক চ্যানেল থাকলে auto-scroll চালু করা
+  if (finalList.length > 1) {
+    startResumeAutoScroll(row);
+  } else {
+    stopResumeAutoScroll();
+  }
+}
+
+function startResumeAutoScroll(row) {
+  stopResumeAutoScroll();
+
+  let paused = false;
+  row.addEventListener("mouseenter", () => (paused = true));
+  row.addEventListener("mouseleave", () => (paused = false));
+  row.addEventListener("touchstart", () => (paused = true), { passive: true });
+  row.addEventListener("touchend", () => setTimeout(() => (paused = false), 2000), { passive: true });
+
+  _resumeAutoScrollTimer = setInterval(() => {
+    if (paused) return;
+    const maxScroll = row.scrollWidth - row.clientWidth;
+    if (maxScroll <= 0) return;
+
+    if (row.scrollLeft >= maxScroll - 2) {
+      row.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      row.scrollBy({ left: 160, behavior: "smooth" });
+    }
+  }, 3000);
+}
+
+function stopResumeAutoScroll() {
+  if (_resumeAutoScrollTimer) {
+    clearInterval(_resumeAutoScrollTimer);
+    _resumeAutoScrollTimer = null;
+  }
 }
 
 function saveResume(chan) {
@@ -1438,7 +1538,7 @@ function startBSTClockEngine() {
 // (a static site alone has no shared memory across visitors' browsers, so
 // an accurate count needs a small server-side counter — see WORKER-README.md
 // for the one-time setup). Fill in the deployed Worker URL below.
-const VISITOR_COUNTER_API = ""; // e.g. "https://shamim-visitor-counter.YOUR-SUBDOMAIN.workers.dev"
+const VISITOR_COUNTER_API = "https://shamim-visitor-counter.iamshamimhasan.workers.dev";
 const VISITOR_SESSION_FLAG = "shamim_visit_counted_session";
 
 async function initVisitorCounter() {
@@ -1468,6 +1568,7 @@ async function init() {
   setupSearch();
   setupHelpDrawer();
   setupServerFilterMenu();
+  setupHideOffToggle();
   setupChipScrollIndicator();
   setupPaneHeightSync();
   setupPlayerControls();
