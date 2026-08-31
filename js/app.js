@@ -9,6 +9,14 @@ const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&c
 const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
 const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
 const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
+
+// ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
+const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
+const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
+const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
+const M3U_URL_PRIMEVIDEO_SPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/primevideo_sports.m3u";
+const M3U_URL_WILLOW_LIVESPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
+
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
@@ -17,8 +25,22 @@ const M3U_SOURCES = [
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
   { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
+  { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
+  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
+  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
+  { url: M3U_URL_PRIMEVIDEO_SPORTS, type: "m3u", source: "PrimeVideo-Sports" },
+  { url: M3U_URL_WILLOW_LIVESPORTS, type: "m3u", source: "Willow-LiveSports" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
+
+// Any channel carrying one of these source tags shows up in the "Live Events" bar
+const LIVE_EVENTS_SOURCE_TAGS = new Set([
+  "SonyLiv",
+  "FanCode-BD",
+  "Tapmad-Events",
+  "PrimeVideo-Sports",
+  "Willow-LiveSports",
+]);
 const CORS_PROXIES = [
   (u) => u, // try direct first
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -912,6 +934,7 @@ function relistNow() {
   updateServerFilterCounts();
   applyFilters();
   renderResumeRow();
+  renderLiveEventsRow();
 
   if (pane) pane.scrollTop = paneScroll;
   if (window.scrollY !== pageScroll) window.scrollTo(0, pageScroll);
@@ -944,14 +967,14 @@ function setupOffChannelToggle() {
   sync();
 }
 
-// ---------- Resume row (Last watched + Tapmad recommendations) ----------
+// ---------- Resume row (Last watched channel) ----------
 let _resumeAutoScrollTimer = null;
 
 function renderResumeRow() {
   const section = $("#resumeSection");
   const row = $("#resumeRow");
 
-  // ১. লাস্ট দেখা চ্যানেল বের করা
+  // লাস্ট দেখা চ্যানেল বের করা
   const resume = loadJSON(LS_RESUME, null);
   let lastWatched = null;
   if (resume) {
@@ -959,18 +982,8 @@ function renderResumeRow() {
     if (chan && isChannelVisible(chan)) lastWatched = chan;
   }
 
-  // ২. Tapmad প্লেলিস্টের চ্যানেলগুলো বের করা
-  const tapmadChannels = CHANNELS.filter(
-    (c) => c.sourceTags && c.sourceTags.has("Tapmad-BD") && isChannelVisible(c)
-  );
-
-  // ৩. লাস্ট ওয়াচড + Tapmad মিলিয়ে ডুপ্লিকেট বাদ দিয়ে ফাইনাল লিস্ট বানানো
-  const seen = new Set();
   const finalList = [];
-  if (lastWatched) { finalList.push(lastWatched); seen.add(lastWatched.id); }
-  tapmadChannels.forEach((c) => {
-    if (!seen.has(c.id)) { finalList.push(c); seen.add(c.id); }
-  });
+  if (lastWatched) finalList.push(lastWatched);
 
   // কিছুই দেখানোর না থাকলে সেকশন লুকিয়ে ফেলা
   if (!finalList.length) {
@@ -1023,6 +1036,75 @@ function startResumeAutoScroll(row) {
       row.scrollBy({ left: 160, behavior: "smooth" });
     }
   }, 3000);
+}
+
+// ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events / PrimeVideo-Sports / Willow-LiveSports) ----------
+let _liveEventsAutoScrollTimer = null;
+
+function renderLiveEventsRow() {
+  const section = $("#liveEventsSection");
+  const row = $("#liveEventsRow");
+  if (!section || !row) return;
+
+  const list = CHANNELS.filter(
+    (c) => c.sourceTags && [...c.sourceTags].some((t) => LIVE_EVENTS_SOURCE_TAGS.has(t)) && isChannelVisible(c)
+  );
+
+  if (!list.length) {
+    section.classList.add("hidden");
+    stopLiveEventsAutoScroll();
+    return;
+  }
+
+  section.classList.remove("hidden");
+  row.innerHTML = "";
+
+  list.forEach((chan) => {
+    const card = document.createElement("div");
+    card.className = "resume-card live-event-card";
+    card.innerHTML = `
+      <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
+      <div class="rc-name">${chan.name}</div>
+      <div class="rc-grp">${chan.group}</div>
+    `;
+    card.addEventListener("click", () => openPlayer(chan));
+    row.appendChild(card);
+  });
+
+  if (list.length > 1) {
+    startLiveEventsAutoScroll(row);
+  } else {
+    stopLiveEventsAutoScroll();
+  }
+}
+
+function startLiveEventsAutoScroll(row) {
+  stopLiveEventsAutoScroll();
+
+  let paused = false;
+  row.addEventListener("mouseenter", () => (paused = true));
+  row.addEventListener("mouseleave", () => (paused = false));
+  row.addEventListener("touchstart", () => (paused = true), { passive: true });
+  row.addEventListener("touchend", () => setTimeout(() => (paused = false), 2000), { passive: true });
+
+  _liveEventsAutoScrollTimer = setInterval(() => {
+    if (paused) return;
+    const maxScroll = row.scrollWidth - row.clientWidth;
+    if (maxScroll <= 0) return;
+
+    if (row.scrollLeft >= maxScroll - 2) {
+      row.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      row.scrollBy({ left: 160, behavior: "smooth" });
+    }
+  }, 3000);
+}
+
+function stopLiveEventsAutoScroll() {
+  if (_liveEventsAutoScrollTimer) {
+    clearInterval(_liveEventsAutoScrollTimer);
+    _liveEventsAutoScrollTimer = null;
+  }
 }
 
 function stopResumeAutoScroll() {
@@ -1801,6 +1883,7 @@ async function init() {
     renderChipBar();
     applyFilters();
     renderResumeRow();
+    renderLiveEventsRow();
 
     // Classify every channel in the background so only the live ones stay
     // listed, and keep re-checking so anything that comes back online returns.
