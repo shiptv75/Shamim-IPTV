@@ -210,11 +210,27 @@ function mergeAllChannels(sourceResults) {
 }
 
 // ---------- Fetch playlist with proxy fallback ----------
+// Each individual fetch attempt (per proxy, per source) is capped at 6s —
+// without this, one slow/hanging CORS proxy on any single source could stall
+// the entire splash screen for 8-10+ seconds since all sources load in
+// parallel and the splash only hides once every source has settled.
+const PLAYLIST_FETCH_TIMEOUT_MS = 6000;
+
+async function fetchWithTimeout(url, opts = {}, ms = PLAYLIST_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function fetchOnePlaylist(sourceDef) {
   const { url, type, source } = sourceDef;
   for (const wrap of CORS_PROXIES) {
     try {
-      const res = await fetch(wrap(url), { cache: "no-store" });
+      const res = await fetchWithTimeout(wrap(url), { cache: "no-store" });
       if (!res.ok) throw new Error("bad status " + res.status);
       if (type === "json") {
         const data = await res.json();
