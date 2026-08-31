@@ -14,15 +14,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<body>
 
-<!-- ===== SPLASH SCREEN ===== -->
-<div id="splash" class="splash">
-  <div class="splash-mark">
-    <img class="splash-logo-img" alt="Shamim IPTV" src="https://i.ibb.co.com/Q3VL4K53/file-00000000c92082099fe48b638272072c.png">
-  </div>
-  <div class="splash-bar"><div class="splash-bar-fill" id="splashFill"></div></div>
-</div>
 
 <!-- ===== APP SHELL ===== -->
 <div id="app" class="app hidden">
@@ -166,7 +158,7 @@
 
       <!-- Continue watching -->
       <section id="resumeSection" class="row hidden">
-        <h2 class="row-title">Recommended</h2>
+        <h2 class="row-title">Last watched</h2>
         <div class="row-scroll" id="resumeRow"></div>
       </section>
 
@@ -190,6 +182,12 @@
       </div>
     </div>
   </div>
+
+  <!-- ===== LIVE EVENTS (full width, below player + sidebar) ===== -->
+  <section id="liveEventsSection" class="row live-events-section hidden">
+    <h2 class="row-title">Live events</h2>
+    <div class="row-scroll" id="liveEventsRow"></div>
+  </section>
 
   <!-- ===== FOOTER (full width, below player + sidebar) ===== -->
   <footer class="site-footer">
