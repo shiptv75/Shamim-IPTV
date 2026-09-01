@@ -210,11 +210,11 @@ function mergeAllChannels(sourceResults) {
 }
 
 // ---------- Fetch playlist with proxy fallback ----------
-// Each individual fetch attempt (per proxy, per source) is capped at 6s —
-// without this, one slow/hanging CORS proxy on any single source could stall
-// the entire splash screen for 8-10+ seconds since all sources load in
-// parallel and the splash only hides once every source has settled.
-const PLAYLIST_FETCH_TIMEOUT_MS = 6000;
+// Each individual fetch attempt (per proxy, per source) is capped — without
+// this, one slow/hanging CORS proxy could stall the entire splash screen for
+// a long time since all sources load in parallel and the splash only hides
+// once every source has settled.
+const PLAYLIST_FETCH_TIMEOUT_MS = 5000;
 
 async function fetchWithTimeout(url, opts = {}, ms = PLAYLIST_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -226,25 +226,33 @@ async function fetchWithTimeout(url, opts = {}, ms = PLAYLIST_FETCH_TIMEOUT_MS) 
   }
 }
 
+// Races all CORS proxies for this source AT THE SAME TIME (instead of trying
+// them one by one) and returns whichever responds first with valid content.
+// This means a source is only ever as slow as its single fastest proxy,
+// rather than the sum of every failed/timed-out attempt before it.
 async function fetchOnePlaylist(sourceDef) {
   const { url, type, source } = sourceDef;
-  for (const wrap of CORS_PROXIES) {
-    try {
-      const res = await fetchWithTimeout(wrap(url), { cache: "no-store" });
-      if (!res.ok) throw new Error("bad status " + res.status);
-      if (type === "json") {
-        const data = await res.json();
-        const m3u = jsonPlaylistToM3U(data);
-        if (m3u) return { source, text: m3u };
-      } else {
-        const text = await res.text();
-        if (text && (text.includes("#EXTM3U") || text.includes("#EXTINF"))) return { source, text };
-      }
-    } catch (e) {
-      continue;
+
+  const tryProxy = async (wrap) => {
+    const res = await fetchWithTimeout(wrap(url), { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status " + res.status);
+    if (type === "json") {
+      const data = await res.json();
+      const m3u = jsonPlaylistToM3U(data);
+      if (!m3u) throw new Error("empty json playlist");
+      return { source, text: m3u };
+    } else {
+      const text = await res.text();
+      if (!text || !(text.includes("#EXTM3U") || text.includes("#EXTINF"))) throw new Error("not m3u");
+      return { source, text };
     }
+  };
+
+  try {
+    return await Promise.any(CORS_PROXIES.map(tryProxy));
+  } catch (e) {
+    return null; // every proxy for this source failed
   }
-  return null; // this source failed, but others may still succeed
 }
 
 // Converts the HridoyTV-style JSON playlist (customChannels + wantedChannels
@@ -312,19 +320,19 @@ let ADMIN_PINNED_SLUGS = [];
 let ADMIN_HIDDEN_SLUGS = [];
 
 async function fetchAdminConfig() {
-  for (const wrap of CORS_PROXIES) {
-    try {
-      const res = await fetch(wrap(ADMIN_CONFIG_URL), { cache: "no-store" });
-      if (!res.ok) continue;
-      const data = await res.json();
-      ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
-      ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
-      return;
-    } catch {
-      continue;
-    }
+  const tryProxy = async (wrap) => {
+    const res = await fetchWithTimeout(wrap(ADMIN_CONFIG_URL), { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status " + res.status);
+    return res.json();
+  };
+
+  try {
+    const data = await Promise.any(CORS_PROXIES.map(tryProxy));
+    ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
+    ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
+  } catch {
+    // file missing or unreachable — just proceed with no pinned/hidden channels
   }
-  // file missing or unreachable — just proceed with no pinned/hidden channels
 }
 
 const CATEGORY_DEFS = [
