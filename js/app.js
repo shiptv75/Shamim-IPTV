@@ -1205,7 +1205,10 @@ function playChannel(ch) {
   const titleEl = $("#player-channel-title");
   if (titleEl) titleEl.textContent = ch.name;
   const statusEl = $("#player-channel-status");
-  if (statusEl) statusEl.innerHTML = `▶ You're watching <strong>${ch.name}</strong> live on Shamim IPTV`;
+  if (statusEl) {
+    const sourceList = ch.sourceTags && ch.sourceTags.size ? [...ch.sourceTags].join(", ") : "—";
+    statusEl.innerHTML = `▶ Category: <strong>${ch.group || "—"}</strong> &nbsp;·&nbsp; Source: <strong>${sourceList}</strong>`;
+  }
   const logoFrame = $("#player-logo-frame");
   if (logoFrame) {
     logoFrame.innerHTML = ch.logo
