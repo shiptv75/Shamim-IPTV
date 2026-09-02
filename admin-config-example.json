@@ -1,0 +1,43 @@
+{
+  "pinned": [
+    "T Sports",
+    "Willow Sports"
+  ],
+  "hidden": [
+    "CNA Originals",
+    "Madina Live",
+    "Quran TV",
+    "Iqraa TV",
+    "Program Promo",
+    "prologue_1",
+    "HridoyTV",
+    "France 24",
+    "Rongeen TV",
+    "ASH TV",
+    "Real Madrid",
+    "TRT World",
+    "WION",
+    "I ON TV UK",
+    "Oman TV",
+    "Oman TV Cultural",
+    "Oman TV Mubashir",
+    "Qatar Television",
+    "Time Televison | USA",
+    "TV ONE"
+  ],
+  "categories": [
+    { "key": "sports", "label": "🏏 Sports", "match": "sport|fifa|cricket|golf|racing|f1\\b" },
+    { "key": "news", "label": "📰 News", "match": "news" },
+    { "key": "bangla", "label": "🇧🇩 Bangla", "match": "^bangla$|bangladeshi" },
+    { "key": "indian_bangla", "label": "🇮🇳 Indian Bangla", "match": "indian.?bangla|kolkata" },
+    { "key": "movies", "label": "🍿 Movies", "match": "movie" },
+    { "key": "kids", "label": "🧸 Kids", "match": "kids" },
+    { "key": "entertainment", "label": "🎭 Entertainment", "match": "entertainment|music" },
+    { "key": "lifestyle", "label": "📖 Lifestyle", "match": "document|lifestyle" },
+    { "key": "religious", "label": "🛐 Religious", "match": "islamic|religious" }
+  ],
+  "channelCategories": {
+    "Bengali Beats": "entertainment",
+    "Somoy TV": "news"
+  }
+}
