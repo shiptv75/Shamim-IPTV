@@ -330,12 +330,34 @@ async function fetchAdminConfig() {
     const data = await Promise.any(CORS_PROXIES.map(tryProxy));
     ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
     ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
+
+    // Optional: fully custom category list, e.g.
+    // "categories": [ { "key":"sports", "label":"🏏 Sports", "match":"sport|cricket" } ]
+    // "match" is a regex source (case-insensitive) tested against the channel's
+    // playlist group; omit "match" for a category that should only ever be
+    // filled manually via "channelCategories" below.
+    if (Array.isArray(data.categories) && data.categories.length) {
+      CATEGORY_DEFS = data.categories.map((c) => ({
+        key: c.key,
+        label: c.label,
+        match: c.match ? new RegExp(c.match, "i") : null,
+      }));
+    }
+
+    // Optional: force specific channels into a specific category by name,
+    // e.g. "channelCategories": { "Bengali Beats": "entertainment" }
+    ADMIN_CHANNEL_CATEGORY = new Map(
+      Object.entries(data.channelCategories || {}).map(([name, key]) => [slugify(name), key])
+    );
   } catch {
     // file missing or unreachable — just proceed with no pinned/hidden channels
   }
 }
 
-const CATEGORY_DEFS = [
+// Default categories — used as a fallback until/unless admin-config.json
+// supplies its own "categories" list (see fetchAdminConfig below), so the
+// site keeps working even if that file is missing or briefly unreachable.
+let CATEGORY_DEFS = [
   { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
   { key: "news", label: "📰 News", match: /news/i },
   { key: "bangla", label: "🇧🇩 Bangla", match: /^bangla$|bangladeshi/i },
@@ -347,9 +369,16 @@ const CATEGORY_DEFS = [
   { key: "religious", label: "🛐 Religious", match: /islamic|religious/i },
 ];
 
+// Per-channel category overrides from admin-config.json ("channelCategories"),
+// keyed by slugified channel name — lets a specific channel be pinned to a
+// category regardless of what its playlist group / auto-match would pick.
+let ADMIN_CHANNEL_CATEGORY = new Map();
+
 function categorize(chan) {
+  const override = ADMIN_CHANNEL_CATEGORY.get(slugify(chan.name));
+  if (override && CATEGORY_DEFS.some((d) => d.key === override)) return override;
   for (const def of CATEGORY_DEFS) {
-    if (def.match.test(chan.group)) return def.key;
+    if (def.match && def.match.test(chan.group)) return def.key;
   }
   return "other";
 }
