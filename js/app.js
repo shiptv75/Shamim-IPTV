@@ -152,6 +152,20 @@ function parseSingleSourceRaw(text) {
 // SHIPTV but "Bangladeshi" on FAST-IPTV), so keying on both would wrongly
 // split the same channel into duplicate cards. The most common group among
 // contributing sources is kept as the canonical one for categorization.
+// A "usable" logo is a real http(s) image URL — this filters out empty
+// strings as well as common placeholder/no-image markers some playlists use
+// instead of actually omitting the attribute, so a real thumbnail from a
+// later-merged source can still win even if an earlier source technically
+// supplied a (useless) logo value first.
+function hasUsableLogo(url) {
+  if (!url || typeof url !== "string") return false;
+  const u = url.trim().toLowerCase();
+  if (!u) return false;
+  if (!/^https?:\/\//.test(u)) return false;
+  if (/no[-_]?image|placeholder|default[-_]?logo|blank\.(png|gif|jpg)/.test(u)) return false;
+  return true;
+}
+
 function mergeAllChannels(sourceResults) {
   const merged = new Map();
   const order = [];
@@ -165,7 +179,7 @@ function mergeAllChannels(sourceResults) {
         merged.set(key, {
           id: key,
           name: entry.name.trim(),
-          logo: entry.logo,
+          logo: hasUsableLogo(entry.logo) ? entry.logo : "",
           group: entry.group,
           sources: [],
           sourceTags: new Set(),
@@ -177,7 +191,9 @@ function mergeAllChannels(sourceResults) {
         order.push(key);
       }
       const chan = merged.get(key);
-      if (!chan.logo && entry.logo) chan.logo = entry.logo;
+      // Prefer any USABLE thumbnail over a missing/placeholder one — checked
+      // across every contributing source, not just the first one seen.
+      if (!hasUsableLogo(chan.logo) && hasUsableLogo(entry.logo)) chan.logo = entry.logo;
       entry.sources.forEach((s) => { if (!chan.sources.includes(s)) chan.sources.push(s); });
       chan.sourceTags.add(source);
       chan._allSources.add(source);
