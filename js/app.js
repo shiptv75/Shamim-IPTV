@@ -863,7 +863,7 @@ function channelCard(chan) {
       ${badgeHtml}
       ${
         chan.logo
-          ? `<img src="${chan.logo}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
+          ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
           : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`
       }
     </div>
@@ -1100,8 +1100,11 @@ function renderResumeRow() {
   finalList.forEach((chan) => {
     const card = document.createElement("div");
     card.className = "resume-card";
+    const logoHtml = chan.logo
+      ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
+      : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`;
     card.innerHTML = `
-      <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
+      <div class="rc-icon-box">${logoHtml}</div>
       <div class="rc-name">${chan.name}</div>
       <div class="rc-grp">${chan.group}</div>
     `;
@@ -1164,8 +1167,11 @@ function renderLiveEventsRow() {
   list.forEach((chan) => {
     const card = document.createElement("div");
     card.className = "resume-card live-event-card";
+    const logoHtml = chan.logo
+      ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
+      : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`;
     card.innerHTML = `
-      <img src="${chan.logo || ""}" alt="" onerror="this.style.display='none'">
+      <div class="rc-icon-box">${logoHtml}</div>
       <div class="rc-name">${chan.name}</div>
       <div class="rc-grp">${chan.group}</div>
     `;
@@ -1290,7 +1296,7 @@ function playChannel(ch) {
   const logoFrame = $("#player-logo-frame");
   if (logoFrame) {
     logoFrame.innerHTML = ch.logo
-      ? `<img src="${ch.logo}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.style.display='none'">`
+      ? `<img src="${ch.logo}" style="max-width:100%;max-height:100%;object-fit:contain;" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
       : `<i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>`;
   }
 
@@ -1858,7 +1864,7 @@ function cvRenderFloatChList(query) {
     const item = document.createElement("div");
     item.className = "cv-float-ch-item" + (currentChannel && ch.id === currentChannel.id ? " active" : "");
     const logoHtml = ch.logo
-      ? `<img class="cv-float-ch-logo" src="${ch.logo}" onerror="this.style.display='none';this.nextSibling.style.display='block'"><div class="cv-float-ch-logo-ph" style="display:none"></div>`
+      ? `<img class="cv-float-ch-logo" src="${ch.logo}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextSibling.style.display='block'"><div class="cv-float-ch-logo-ph" style="display:none"></div>`
       : `<div class="cv-float-ch-logo-ph"></div>`;
     item.innerHTML = `
       <span class="cv-float-ch-num">${idx + 1}</span>
