@@ -4,7 +4,6 @@
 
 const M3U_URL = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
 const M3U_URL_2 = "https://shamimiptv.pages.dev/api/proxy?playlist=fastiptv&code=554075";
-const JSON_PLAYLIST_URL = "https://shamimiptv.pages.dev/api/proxy?url=" + encodeURIComponent("https://raw.githubusercontent.com/hossainhridoyx/HridoyTV_Server/refs/heads/main/channels.json");
 const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
 const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
 const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
@@ -14,13 +13,10 @@ const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&c
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
-const M3U_URL_PRIMEVIDEO_SPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/primevideo_sports.m3u";
-const M3U_URL_WILLOW_LIVESPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
-  { url: JSON_PLAYLIST_URL, type: "json", source: "HridoyTV" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "Tapmad-BD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
@@ -28,8 +24,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
   { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
   { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
-  { url: M3U_URL_PRIMEVIDEO_SPORTS, type: "m3u", source: "PrimeVideo-Sports" },
-  { url: M3U_URL_WILLOW_LIVESPORTS, type: "m3u", source: "Willow-LiveSports" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -38,8 +32,6 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode-BD",
   "Tapmad-Events",
-  "PrimeVideo-Sports",
-  "Willow-LiveSports",
 ]);
 const CORS_PROXIES = [
   (u) => u, // try direct first
@@ -214,7 +206,7 @@ function mergeAllChannels(sourceResults) {
 // this, one slow/hanging CORS proxy could stall the entire splash screen for
 // a long time since all sources load in parallel and the splash only hides
 // once every source has settled.
-const PLAYLIST_FETCH_TIMEOUT_MS = 5000;
+const PLAYLIST_FETCH_TIMEOUT_MS = 4000;
 
 async function fetchWithTimeout(url, opts = {}, ms = PLAYLIST_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -224,6 +216,31 @@ async function fetchWithTimeout(url, opts = {}, ms = PLAYLIST_FETCH_TIMEOUT_MS) 
   } finally {
     clearTimeout(t);
   }
+}
+
+// ---------- Playlist cache (stale-while-revalidate) ----------
+// Raw playlist text is cached per source in localStorage. On the next visit
+// within PLAYLIST_CACHE_TTL, init() paints the grid straight from this cache
+// (no network wait at all) while a fresh copy loads quietly in the
+// background — this is what makes repeat visits feel instant instead of
+// waiting on the splash screen for every source to answer over the network.
+const PLAYLIST_CACHE_KEY = "obiram_playlist_cache_v1";
+const PLAYLIST_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
+
+function cachePlaylistResult(source, text) {
+  const cache = loadJSON(PLAYLIST_CACHE_KEY, {});
+  cache[source] = { text, ts: Date.now() };
+  saveJSON(PLAYLIST_CACHE_KEY, cache);
+}
+function getFreshCachedPlaylists() {
+  const cache = loadJSON(PLAYLIST_CACHE_KEY, {});
+  const now = Date.now();
+  const out = [];
+  for (const src of SOURCE_NAMES) {
+    const entry = cache[src];
+    if (entry && now - entry.ts < PLAYLIST_CACHE_TTL) out.push({ source: src, text: entry.text });
+  }
+  return out;
 }
 
 // Races all CORS proxies for this source AT THE SAME TIME (instead of trying
@@ -249,7 +266,9 @@ async function fetchOnePlaylist(sourceDef) {
   };
 
   try {
-    return await Promise.any(CORS_PROXIES.map(tryProxy));
+    const result = await Promise.any(CORS_PROXIES.map(tryProxy));
+    cachePlaylistResult(result.source, result.text);
+    return result;
   } catch (e) {
     return null; // every proxy for this source failed
   }
@@ -319,6 +338,39 @@ const ADMIN_CONFIG_URL = "https://raw.githubusercontent.com/shiptv75/Obiram/main
 let ADMIN_PINNED_SLUGS = [];
 let ADMIN_HIDDEN_SLUGS = [];
 
+const ADMIN_CONFIG_CACHE_KEY = "obiram_admin_config_cache_v1";
+const ADMIN_CONFIG_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
+
+function applyAdminConfigData(data) {
+  ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
+  ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
+
+  // Optional: fully custom category list, e.g.
+  // "categories": [ { "key":"sports", "label":"🏏 Sports", "match":"sport|cricket" } ]
+  // "match" is a regex source (case-insensitive) tested against the channel's
+  // playlist group; omit "match" for a category that should only ever be
+  // filled manually via "channelCategories" below.
+  if (Array.isArray(data.categories) && data.categories.length) {
+    CATEGORY_DEFS = data.categories.map((c) => ({
+      key: c.key,
+      label: c.label,
+      match: c.match ? new RegExp(c.match, "i") : null,
+    }));
+  }
+
+  // Optional: force specific channels into a specific category by name,
+  // e.g. "channelCategories": { "Bengali Beats": "entertainment" }
+  ADMIN_CHANNEL_CATEGORY = new Map(
+    Object.entries(data.channelCategories || {}).map(([name, key]) => [slugify(name), key])
+  );
+}
+
+function getFreshCachedAdminConfig() {
+  const cached = loadJSON(ADMIN_CONFIG_CACHE_KEY, null);
+  if (cached && Date.now() - cached.ts < ADMIN_CONFIG_CACHE_TTL) return cached.data;
+  return null;
+}
+
 async function fetchAdminConfig() {
   const tryProxy = async (wrap) => {
     const res = await fetchWithTimeout(wrap(ADMIN_CONFIG_URL), { cache: "no-store" });
@@ -328,27 +380,8 @@ async function fetchAdminConfig() {
 
   try {
     const data = await Promise.any(CORS_PROXIES.map(tryProxy));
-    ADMIN_PINNED_SLUGS = (data.pinned || []).map(slugify);
-    ADMIN_HIDDEN_SLUGS = (data.hidden || []).map(slugify);
-
-    // Optional: fully custom category list, e.g.
-    // "categories": [ { "key":"sports", "label":"🏏 Sports", "match":"sport|cricket" } ]
-    // "match" is a regex source (case-insensitive) tested against the channel's
-    // playlist group; omit "match" for a category that should only ever be
-    // filled manually via "channelCategories" below.
-    if (Array.isArray(data.categories) && data.categories.length) {
-      CATEGORY_DEFS = data.categories.map((c) => ({
-        key: c.key,
-        label: c.label,
-        match: c.match ? new RegExp(c.match, "i") : null,
-      }));
-    }
-
-    // Optional: force specific channels into a specific category by name,
-    // e.g. "channelCategories": { "Bengali Beats": "entertainment" }
-    ADMIN_CHANNEL_CATEGORY = new Map(
-      Object.entries(data.channelCategories || {}).map(([name, key]) => [slugify(name), key])
-    );
+    applyAdminConfigData(data);
+    saveJSON(ADMIN_CONFIG_CACHE_KEY, { data, ts: Date.now() });
   } catch {
     // file missing or unreachable — just proceed with no pinned/hidden channels
   }
@@ -1091,7 +1124,7 @@ function startResumeAutoScroll(row) {
   }, 3000);
 }
 
-// ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events / PrimeVideo-Sports / Willow-LiveSports) ----------
+// ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events) ----------
 let _liveEventsAutoScrollTimer = null;
 
 function renderLiveEventsRow() {
@@ -1928,6 +1961,36 @@ async function init() {
   initVisitorCounter();
 
   setSplashProgress(20, "প্লেলিস্ট আনা হচ্ছে…");
+
+  // Stale-while-revalidate: if every source has a recent cached copy (from a
+  // visit within the last 20 minutes), paint the whole grid from that cache
+  // immediately — no network wait at all — and hide the splash right away.
+  // The real network fetch below still runs (or continues) in the
+  // background and quietly refreshes everything once it lands.
+  let paintedFromCache = false;
+  const cachedPlaylists = getFreshCachedPlaylists();
+  if (cachedPlaylists.length === SOURCE_NAMES.length) {
+    try {
+      const cachedAdminConfig = getFreshCachedAdminConfig();
+      if (cachedAdminConfig) applyAdminConfigData(cachedAdminConfig);
+
+      CHANNELS = mergeAllChannels(cachedPlaylists).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
+      if (CHANNELS.length) {
+        buildGroups();
+        renderServerFilterMenu();
+        renderChipBar();
+        applyFilters();
+        renderResumeRow();
+        renderLiveEventsRow();
+        setSplashProgress(100, "");
+        setTimeout(hideSplash, 120);
+        paintedFromCache = true;
+      }
+    } catch {
+      paintedFromCache = false;
+    }
+  }
+
   try {
     const [results] = await Promise.all([fetchPlaylist(), fetchAdminConfig()]);
     setSplashProgress(65, "চ্যানেল সাজানো হচ্ছে…");
@@ -1947,10 +2010,14 @@ async function init() {
     startPeriodicRecheck();
 
     setSplashProgress(100, "");
-    setTimeout(hideSplash, 350);
+    if (!paintedFromCache) setTimeout(hideSplash, 350);
   } catch (e) {
-    setSplashProgress(100, "লোড ব্যর্থ হয়েছে — আবার চেষ্টা করা হচ্ছে");
-    setTimeout(() => location.reload(), 2500);
+    if (!paintedFromCache) {
+      setSplashProgress(100, "লোড ব্যর্থ হয়েছে — আবার চেষ্টা করা হচ্ছে");
+      setTimeout(() => location.reload(), 2500);
+    }
+    // Already showing a good cached copy of the site — a failed background
+    // refresh shouldn't force a reload loop on top of a working page.
   }
 }
 
