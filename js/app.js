@@ -213,6 +213,13 @@ function mergeAllChannels(sourceResults) {
     delete chan._offSources;
     delete chan._allSources;
     delete chan._groupVotes;
+
+    // A manually-assigned logo (admin-config.json "channelLogos") always wins
+    // over whatever the playlists provided, since it's set for exactly the
+    // channels where no source has a usable thumbnail.
+    const manualLogo = ADMIN_CHANNEL_LOGO.get(chan.id);
+    if (manualLogo) chan.logo = manualLogo;
+
     return chan;
   });
 }
@@ -379,6 +386,13 @@ function applyAdminConfigData(data) {
   ADMIN_CHANNEL_CATEGORY = new Map(
     Object.entries(data.channelCategories || {}).map(([name, key]) => [slugify(name), key])
   );
+
+  // Optional: force a specific logo URL for a channel by name — used when no
+  // playlist source has a usable thumbnail for it, e.g.
+  // "channelLogos": { "ATN Bangla": "https://.../atnbangla.png" }
+  ADMIN_CHANNEL_LOGO = new Map(
+    Object.entries(data.channelLogos || {}).map(([name, url]) => [slugify(name), url])
+  );
 }
 
 function getFreshCachedAdminConfig() {
@@ -422,6 +436,7 @@ let CATEGORY_DEFS = [
 // keyed by slugified channel name — lets a specific channel be pinned to a
 // category regardless of what its playlist group / auto-match would pick.
 let ADMIN_CHANNEL_CATEGORY = new Map();
+let ADMIN_CHANNEL_LOGO = new Map();
 
 function categorize(chan) {
   const override = ADMIN_CHANNEL_CATEGORY.get(slugify(chan.name));
