@@ -1,0 +1,62 @@
+{
+  "pinned": [
+    "T Sports",
+    "Willow Sports"
+  ],
+  "hidden": [
+    "CNA Originals",
+    "Madina Live",
+    "Quran TV",
+    "Iqraa TV",
+    "Program Promo",
+    "prologue_1",
+    "HridoyTV",
+    "France 24",
+    "Rongeen TV",
+    "ASH TV",
+    "Real Madrid",
+    "TRT World",
+    "WION",
+    "I ON TV UK",
+    "Oman TV",
+    "Oman TV Cultural",
+    "Oman TV Mubashir",
+    "Qatar Television",
+    "Time Televison | USA",
+    "TV ONE"
+  ],
+  "categories": [
+    { "key": "sports", "label": "🏏 Sports", "match": "sport|fifa|cricket|golf|racing|f1\\b" },
+    { "key": "news", "label": "📰 News", "match": "news" },
+    { "key": "bangla", "label": "🇧🇩 Bangla", "match": "^bangla$|bangladeshi" },
+    { "key": "indian_bangla", "label": "🇮🇳 Indian Bangla", "match": "indian.?bangla|kolkata" },
+    { "key": "movies", "label": "🍿 Movies", "match": "movie" },
+    { "key": "kids", "label": "🧸 Kids", "match": "kids" },
+    { "key": "entertainment", "label": "🎭 Entertainment", "match": "entertainment|music" },
+    { "key": "lifestyle", "label": "📖 Lifestyle", "match": "document|lifestyle" },
+    { "key": "religious", "label": "🛐 Religious", "match": "islamic|religious" }
+  ],
+  "channelCategories": {
+    "Bengali Beats": "entertainment",
+    "Somoy TV": "news"
+  },
+  "channelLogos": {
+    "ATN Bangla": "https://commons.wikimedia.org/wiki/Special:FilePath/ATN_Bangla.svg",
+    "Maasranga": "https://en.wikipedia.org/wiki/Special:FilePath/Maasranga_Television_Logo.jpg",
+    "Desh TV": "https://commons.wikimedia.org/wiki/Special:FilePath/Desh_TV_logo_(2009-2022).svg",
+    "T Sports": "https://commons.wikimedia.org/wiki/Special:FilePath/T_Sports_logo.svg",
+    "Enter 10 Bangla": "REPLACE_ME_could_not_find_a_reliable_public_logo",
+    "Channel 1": "https://en.wikipedia.org/wiki/Special:FilePath/Channel_1_Bangladesh_Logo.svg",
+    "Star News": "REPLACE_ME_channel_launched_2026_no_public_logo_file_yet",
+    "News 24": "https://en.wikipedia.org/wiki/Special:FilePath/News24logo(BD).jpg",
+    "DBC News": "https://i.imgur.com/WmLw772.png",
+    "Zee Cinema": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/zee-cinema-in.png",
+    "Zee Bangla": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/zee-bangla-in.png",
+    "9XM": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/9xm-in.png",
+    "9X Tashan": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/9x-tashan-in.png",
+    "Euro Sports": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/eurosport-in.png",
+    "Sony sports ten": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-ten-1-in.png",
+    "B4U movies": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/b4u-movies-in.png",
+    "Star Jalsha": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-jalsha-in.png"
+  }
+}
