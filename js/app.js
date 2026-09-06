@@ -64,6 +64,7 @@ let currentServerIndex = 0;
 let cvIsSeeking = false;
 let cvControlsTimer = null;
 let cvStallTimer = null;
+let cvVideoCheckTimer = null;
 
 // ---------- Utility ----------
 const $ = (sel) => document.querySelector(sel);
@@ -544,12 +545,41 @@ async function probeViaFetch(url) {
   }
 }
 
+// A plain fetch only proves the server answered with HTTP 200 — it says
+// nothing about whether real video data came back. Several sources (this is
+// what was happening with TNT 1-4) respond 200 to every request but send an
+// empty/HTML/error body instead of an actual MPEG-TS stream, so the old check
+// marked them ON even though the player could never play them. Real MPEG-TS
+// packets always start with the sync byte 0x47, so reading just the first
+// chunk of the body and checking for it catches these fake-OK streams
+// without downloading the whole stream.
+async function probeViaTsSniff(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LIVE_CHECK_TIMEOUT);
+  try {
+    const res = await fetch(url, { method: "GET", mode: "cors", cache: "no-store", signal: controller.signal });
+    if (!res.ok || !res.body) return false;
+    const reader = res.body.getReader();
+    const { value } = await reader.read();
+    try { reader.cancel(); } catch {}
+    if (!value || value.length < 4) return false;
+    return value[0] === 0x47; // MPEG-TS sync byte
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Probes a single stream URL the same way the player itself would load it.
 async function probeOneUrl(url) {
   try {
     if (/\.m3u8(\?|$)/i.test(url)) {
       const hlsResult = await withTimeout(probeViaHls(url), LIVE_CHECK_TIMEOUT);
       return hlsResult === null ? await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT) : hlsResult;
+    }
+    if (isTsStream(url)) {
+      return await withTimeout(probeViaTsSniff(url), LIVE_CHECK_TIMEOUT);
     }
     return await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT);
   } catch {
@@ -959,11 +989,42 @@ function setupServerFilterMenu() {
 }
 
 // ---------- Grid ----------
-function renderGrid(list) {
+function renderGrid(list, grouped) {
   const grid = $("#mainGrid");
   grid.innerHTML = "";
   $("#emptyState").classList.toggle("hidden", list.length > 0);
-  list.forEach((c) => grid.appendChild(channelCard(c)));
+
+  if (!grouped) {
+    list.forEach((c) => grid.appendChild(channelCard(c)));
+    return;
+  }
+
+  // Grouped view: one sub-section per category (in CATEGORY_DEFS order,
+  // "other" last), each with its own heading + count, so "All" reads as an
+  // organized channel guide instead of one long mixed list.
+  const byCategory = new Map();
+  list.forEach((c) => {
+    if (!byCategory.has(c.category)) byCategory.set(c.category, []);
+    byCategory.get(c.category).push(c);
+  });
+
+  const orderedKeys = [...CATEGORY_DEFS.map((d) => d.key), "other"];
+  orderedKeys.forEach((key) => {
+    const items = byCategory.get(key);
+    if (!items || !items.length) return;
+    const def = CATEGORY_DEFS.find((d) => d.key === key);
+    const label = def ? def.label : "অন্যান্য";
+
+    const section = document.createElement("div");
+    section.className = "cat-section";
+    section.innerHTML = `
+      <div class="cat-section-title">${label} <span class="cs-count">${items.length}</span></div>
+      <div class="grid icon-grid"></div>
+    `;
+    const subGrid = section.querySelector(".icon-grid");
+    items.forEach((c) => subGrid.appendChild(channelCard(c)));
+    grid.appendChild(section);
+  });
 }
 
 function applyFilters() {
@@ -1014,7 +1075,7 @@ function applyFilters() {
   }
   if (revealBtn) revealBtn.classList.toggle("hidden", !showReveal);
 
-  renderGrid(list);
+  renderGrid(list, currentChip === "all");
 }
 
 function toggleFav(id) {
@@ -1288,6 +1349,7 @@ function openPlayer(chan) {
 
 function closePlayer() {
   clearTimeout(cvStallTimer);
+  clearTimeout(cvVideoCheckTimer);
   destroyExistingPlayers();
   cvShowPoster();
   $("#videoError")?.remove();
@@ -1409,6 +1471,15 @@ function cvLoadStreamSource(rawUrl) {
   // instead of silently hanging with a spinner forever. ──
   clearTimeout(cvStallTimer);
   cvStallTimer = setTimeout(() => cvHandleStall(url), 9000);
+
+  // ── audio-only watchdog: some sources decode audio fine but the video
+  // track never renders (videoWidth stays 0) — almost always because the
+  // stream is encoded in H.265/HEVC, which most desktop browsers cannot
+  // decode at all even though the container demuxes correctly. The stall
+  // watchdog above can't catch this since audio genuinely is playing, so
+  // this checks specifically for "playing but no picture" a bit later. ──
+  clearTimeout(cvVideoCheckTimer);
+  cvVideoCheckTimer = setTimeout(() => cvHandleNoVideo(url), 12000);
 
   function restoreVolume() {
     video.volume = savedVolume;
@@ -1539,6 +1610,28 @@ function cvShowVideoError() {
   frame.appendChild(box);
   $("#videoErrorRetry").addEventListener("click", () => { box.remove(); if (currentStreamUrl) cvLoadStreamSource(currentStreamUrl); });
   $("#videoErrorServers").addEventListener("click", () => { box.remove(); toggleServerMenu(); });
+}
+
+// ── called when audio has been playing for a while but no picture ever
+// showed up — almost always an HEVC/H.265 stream, which most desktop
+// browsers simply cannot decode (this is a codec limitation, not a bug that
+// front-end code can patch around). Tries another server first since a
+// different source for the same channel is often encoded in H.264 instead,
+// and only falls back to an explanatory message if no alternative exists. ──
+function cvHandleNoVideo(failedUrl) {
+  if (currentStreamUrl !== failedUrl) return; // a newer load already superseded this one
+  const video = $("#main-hybrid-video-node");
+  if (!video || video.paused || video.readyState < 2) return; // not actually the audio-only case
+  if (video.videoWidth > 0) return; // picture is fine, false alarm
+
+  if (currentServerList.length > 1 && currentServerIndex < currentServerList.length - 1) {
+    currentServerIndex++;
+    cvShowToast(`🎞 ভিডিও আসছে না, Server ${currentServerIndex + 1} চেষ্টা করা হচ্ছে…`);
+    renderServerMenu();
+    cvLoadStreamSource(currentServerList[currentServerIndex].url);
+  } else {
+    cvShowToast("⚠ এই স্ট্রিমের ভিডিও ফরম্যাট (HEVC) এই ব্রাউজারে সাপোর্টেড না — শুধু অডিও চলবে");
+  }
 }
 
 // ── toast, play/pause, mute, volume, fullscreen, pip ──
