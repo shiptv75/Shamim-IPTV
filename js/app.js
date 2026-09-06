@@ -423,13 +423,14 @@ async function fetchAdminConfig() {
 // site keeps working even if that file is missing or briefly unreachable.
 let CATEGORY_DEFS = [
   { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
-  { key: "news", label: "📰 News", match: /news/i },
   { key: "bangla", label: "🇧🇩 Bangla", match: /^bangla$|bangladeshi/i },
-  { key: "indian_bangla", label: "🇮🇳 Indian Bangla", match: /indian.?bangla|kolkata/i },
+  { key: "news", label: "📰 News", match: /news/i },
+  { key: "music", label: "🎵 Music", match: /music/i },
   { key: "movies", label: "🍿 Movies", match: /movie/i },
+  { key: "entertainment", label: "🎭 Entertainment", match: /entertainment/i },
   { key: "kids", label: "🧸 Kids", match: /kids/i },
-  { key: "entertainment", label: "🎭 Entertainment", match: /entertainment|music/i },
   { key: "lifestyle", label: "📖 Lifestyle", match: /document|lifestyle/i },
+  { key: "indian_bangla", label: "🇮🇳 Indian Bangla", match: /indian.?bangla|kolkata/i },
   { key: "religious", label: "🛐 Religious", match: /islamic|religious/i },
 ];
 
@@ -468,7 +469,7 @@ function buildGroups() {
 // whether the origin server is reachable in the abstract.
 const LIVE_CACHE_KEY = "obiram_stream_status";
 const LIVE_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
-const LIVE_CHECK_TIMEOUT = 7000;
+const LIVE_CHECK_TIMEOUT = 9000;
 // Raised from 4: every channel now gets swept in the background (not just the
 // ones scrolled into view), so the whole list has to finish in a sane amount
 // of time. 6 channels x up to 3 parallel source probes = ~18 in-flight
@@ -518,14 +519,20 @@ function probeViaHls(url) {
   return new Promise((resolve) => {
     if (!window.Hls || !Hls.isSupported()) { resolve(null); return; } // can't tell — fall back to fetch
     let done = false;
-    const hls = new Hls({ manifestLoadingTimeOut: LIVE_CHECK_TIMEOUT, manifestLoadingMaxRetry: 0 });
+    const hls = new Hls({ manifestLoadingTimeOut: LIVE_CHECK_TIMEOUT, manifestLoadingMaxRetry: 0, fragLoadingMaxRetry: 0, levelLoadingMaxRetry: 0 });
     const finish = (ok) => {
       if (done) return;
       done = true;
       try { hls.destroy(); } catch {}
       resolve(ok);
     };
-    hls.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
+    // A parsed manifest only proves the playlist file itself loaded — many
+    // geo-blocked / token-expired / DRM-locked channels (this is what was
+    // happening with the TNT series) serve a perfectly valid manifest while
+    // every actual video segment it points to 403s or times out. Waiting for
+    // a real segment to land (FRAG_LOADED) is what actually proves the
+    // stream plays, matching what a real viewer would experience.
+    hls.on(Hls.Events.FRAG_LOADED, () => finish(true));
     hls.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) finish(false); });
     try { hls.loadSource(url); } catch { finish(false); }
   });
