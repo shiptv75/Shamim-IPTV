@@ -42,7 +42,7 @@
     { "key": "religious", "label": "🛐 Religious", "match": "islamic|religious" }
   ],
   "channelCategories": {
-    "Bengali Beats": "entertainment",
+    "Bengali Beats": "music",
     "Somoy TV": "news"
   },
   "channelLogos": {
@@ -53,7 +53,7 @@
     "Enter 10 Bangla": "REPLACE_ME_could_not_find_a_reliable_public_logo",
     "Channel 1": "https://en.wikipedia.org/wiki/Special:FilePath/Channel_1_Bangladesh_Logo.svg",
     "Star News": "REPLACE_ME_channel_launched_2026_no_public_logo_file_yet",
-    "News 24": "https://en.wikipedia.org/wiki/Special:FilePath/News24logo(BD).jpg",
+    "News 24": "https://i.ibb.co.com/CpntX4Xr/News24-logo-freekaj.png",
     "DBC News": "https://i.imgur.com/WmLw772.png",
     "Zee Cinema": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/zee-cinema-in.png",
     "Zee Bangla": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/zee-bangla-in.png",
