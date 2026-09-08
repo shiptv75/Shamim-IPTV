@@ -55,29 +55,33 @@ a{ color: inherit; text-decoration: none; }
 /* ============ SPLASH ============ */
 .splash{
   position:fixed; inset:0; z-index:200;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px;
   background: #000000; /* একদম প্লেইন কালো, কোনো গ্রেডিয়েন্ট/গ্লো নেই */
   overflow:hidden;
 }
-.splash-mark{ position:relative; width:min(58vw, 240px); height:min(58vw, 240px); display:flex; align-items:center; justify-content:center; }
-.splash-logo, .mini-mark{
-  width:60px; height:60px; border-radius:50%;
-  background: linear-gradient(145deg, var(--sig), var(--sig-2));
-  display:flex; align-items:center; justify-content:center;
-  font-family: var(--font-display); font-weight:900; font-size:26px; color:#fff;
+.splash-text{ display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+.splash-wordmark{
+  font-family: var(--font-display); font-weight:800; font-size:clamp(32px, 8vw, 56px);
+  color:#ffffff; line-height:1; letter-spacing:-0.5px;
 }
-.mini-mark{ width:44px; height:44px; font-size:19px; }
-.splash-logo-img{
-  width:100%; height:100%; object-fit:contain;
-  /* কোনো glow/drop-shadow নেই — রেগুলার স্ট্যাটিক লোগো */
-  position:relative; z-index:1;
+.splash-wordmark span{ color: var(--sig); }
+.splash-sub{
+  color: var(--muted); font-size:13px; font-family: var(--font-mono);
+  letter-spacing:4px; text-transform:uppercase;
 }
-.splash-sub{ color: var(--muted); font-size:13px; font-family: var(--font-mono); letter-spacing:.5px; }
-.splash-bar{ width:210px; height:4px; background: var(--surface-2); border-radius:4px; overflow:hidden; position:relative; }
+.splash-bar{
+  width:min(70vw, 320px); height:2px; background: var(--surface-2);
+  border-radius:4px; overflow:visible; position:relative;
+}
 .splash-bar-fill{
   height:100%; width:0%; border-radius:4px;
-  background: #ffffff; /* সাদা সলিড প্রগ্রেস বার, চাইলে var(--sig) দিয়ে সবুজ রাখতে পারেন */
+  background: var(--sig);
   transition: width .3s ease; position:relative;
+}
+.splash-bar-dot{
+  position:absolute; right:-6px; top:50%; transform: translateY(-50%);
+  width:12px; height:12px; border-radius:50%; background: var(--glow);
+  box-shadow: 0 0 12px 4px rgba(0,217,132,0.65);
 }
 
 /* ============ TOPBAR ============ */
