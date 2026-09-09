@@ -66,4 +66,9 @@
     "B4U movies": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/b4u-movies-in.png",
     "Star Jalsha": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-jalsha-in.png"
   }
+  "channelAliases": {
+  "Tsports": "T Sports",
+  "T Sports HD": "T Sports",
+  "T-Sports": "T Sports"
+}
 }
