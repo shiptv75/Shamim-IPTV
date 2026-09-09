@@ -175,11 +175,15 @@ function mergeAllChannels(sourceResults) {
     if (!text) return;
     const rawEntries = parseSingleSourceRaw(text);
     rawEntries.forEach((entry) => {
-      const key = slugify(entry.name);
+      // If this raw name is a known alias, merge it under its canonical name
+      // instead of its own — this is what lets "Tsports" / "T Sports HD" /
+      // etc. from different playlists all land on one single channel card.
+      const canonicalName = ADMIN_CHANNEL_ALIASES.get(slugify(entry.name)) || entry.name;
+      const key = slugify(canonicalName);
       if (!merged.has(key)) {
         merged.set(key, {
           id: key,
-          name: entry.name.trim(),
+          name: canonicalName.trim(),
           logo: hasUsableLogo(entry.logo) ? entry.logo : "",
           group: entry.group,
           sources: [],
@@ -394,6 +398,16 @@ function applyAdminConfigData(data) {
   ADMIN_CHANNEL_LOGO = new Map(
     Object.entries(data.channelLogos || {}).map(([name, url]) => [slugify(name), url])
   );
+
+  // Optional: collapse differently-spelled duplicates from different
+  // playlists into a single channel, e.g.
+  // "channelAliases": { "Tsports": "T Sports", "T Sports HD": "T Sports" }
+  // Every key here is a raw name AS IT APPEARS in some playlist; the value
+  // is the one canonical name/channel everything should merge into. This is
+  // applied before merging, so all their sources/logos combine into one card.
+  ADMIN_CHANNEL_ALIASES = new Map(
+    Object.entries(data.channelAliases || {}).map(([variant, canonical]) => [slugify(variant), canonical])
+  );
 }
 
 function getFreshCachedAdminConfig() {
@@ -439,6 +453,7 @@ let CATEGORY_DEFS = [
 // category regardless of what its playlist group / auto-match would pick.
 let ADMIN_CHANNEL_CATEGORY = new Map();
 let ADMIN_CHANNEL_LOGO = new Map();
+let ADMIN_CHANNEL_ALIASES = new Map();
 
 function categorize(chan) {
   const override = ADMIN_CHANNEL_CATEGORY.get(slugify(chan.name));
@@ -1311,6 +1326,12 @@ function saveResume(chan) {
 }
 
 // ---------- Search ----------
+function setupHomeButton() {
+  const btn = $("#homeBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => setChip("all"));
+}
+
 function setupSearch() {
   const input = $("#searchInput");
   const clearBtn = $("#searchClear");
@@ -2088,6 +2109,7 @@ function setupPlayerControls() {
 
 // ---------- INIT ----------
 async function init() {
+  setupHomeButton();
   setupSearch();
   setupHelpDrawer();
   setupServerFilterMenu();
