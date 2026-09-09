@@ -94,16 +94,8 @@ a{ color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--line);
 }
 .topbar-left{ display:flex; align-items:center; gap:10px; }
-.brand{ display:flex; align-items:center; gap:9px; }
-.brand-mark{
-  width:34px; height:34px; border-radius:10px;
-  background: linear-gradient(145deg, var(--sig), var(--sig-2));
-  display:flex; align-items:center; justify-content:center;
-  font-family: var(--font-display); font-weight:900; font-size:16px; color:#fff;
-}
-.brand-mark-img{
-  width:34px; height:34px; border-radius:10px; object-fit:cover; background:#fff;
-}
+.brand{ display:flex; align-items:center; gap:9px; padding:4px; border-radius: var(--r-sm); transition: opacity .15s; }
+.brand:hover{ opacity:.85; }
 .brand-word{ font-family: var(--font-display); font-weight:700; font-size:16px; letter-spacing:1px; white-space:nowrap; }
 .brand-word span{ color: var(--glow); }
 
