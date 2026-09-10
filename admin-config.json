@@ -28,7 +28,7 @@
     "Oman TV Cultural",
     "Oman TV Mubashir",
     "Qatar Television",
-    "Time Televison | USA" ,
+    "Time Televison | USA",
     "NBC Sports",
     "Goal TV",
     "Xtrem Sports",
@@ -38,7 +38,7 @@
     "Depot",
     "MadaniTV",
     "PeaceTV",
-    "DBC", 
+    "DBC",
     "NTV HD",
     "TV ONE"
   ],
@@ -76,10 +76,10 @@
     "Sony sports ten": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/sony-ten-1-in.png",
     "B4U movies": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/b4u-movies-in.png",
     "Star Jalsha": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/star-jalsha-in.png"
-  }
+  },
   "channelAliases": {
-  "Tsports": "T Sports",
-  "T Sports HD": "T Sports",
-  "T-Sports": "T Sports"
-}
+    "Tsports": "T Sports",
+    "T Sports HD": "T Sports",
+    "T-Sports": "T Sports"
+  }
 }
