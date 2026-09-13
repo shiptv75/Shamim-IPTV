@@ -9,11 +9,13 @@ const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode
 const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
 const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
+const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
+const M3U_URL_WILLOW_LIVESPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
@@ -23,9 +25,11 @@ const M3U_SOURCES = [
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
   { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_DEVM3U, type: "m3u", source: "DevM3U" },
+  { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "TV9-Toffee" },
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
   { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
   { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
+  { url: M3U_URL_WILLOW_LIVESPORTS, type: "m3u", source: "Willow-LiveSports" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -34,6 +38,7 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode-BD",
   "Tapmad-Events",
+  "Willow-LiveSports",
 ]);
 const CORS_PROXIES = [
   (u) => u, // try direct first
