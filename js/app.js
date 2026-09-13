@@ -15,7 +15,6 @@ const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
-const M3U_URL_WILLOW_LIVESPORTS = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
@@ -29,7 +28,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
   { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
   { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
-  { url: M3U_URL_WILLOW_LIVESPORTS, type: "m3u", source: "Willow-LiveSports" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -38,7 +36,6 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode-BD",
   "Tapmad-Events",
-  "Willow-LiveSports",
 ]);
 const CORS_PROXIES = [
   (u) => u, // try direct first
@@ -124,8 +121,16 @@ function parseSingleSourceRaw(text) {
     if (line.startsWith("#EXTINF")) {
       if (pending && pending.sources.length) raw.push(pending);
 
-      const nameMatch = line.match(/,(.*)$/);
-      const name = (nameMatch ? nameMatch[1].trim() : "Unknown").normalize("NFKC");
+      // The display name follows the LAST attribute's closing quote + comma
+      // (e.g. ...group-title="Cricket",Actual Channel Name). Splitting on the
+      // FIRST comma instead breaks when an attribute value — like a tvg-logo
+      // URL containing "...,1080_.jpeg" — has a comma of its own earlier in
+      // the line, which was producing garbled names for some playlists.
+      const lastQuoteComma = line.lastIndexOf('",');
+      const rawName = lastQuoteComma !== -1
+        ? line.slice(lastQuoteComma + 2)
+        : (line.match(/,(.*)$/)?.[1] || "Unknown");
+      const name = rawName.trim().normalize("NFKC");
       const logoMatch = line.match(/tvg-logo="([^"]*)"/);
       const groupMatch = line.match(/group-title="([^"]*)"/);
       const newMatch = line.match(/tvg-new="1"/);
