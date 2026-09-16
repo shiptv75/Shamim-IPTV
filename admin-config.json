@@ -56,7 +56,21 @@
   ],
   "channelCategories": {
     "Bengali Beats": "music",
-    "Somoy TV": "news"
+    "Somoy TV": "news",
+    "SONY MAX": "movies",
+    "SONY ENTERTAINMENT TELEVISION": "entertainment",
+    "Colors HD": "entertainment",
+    "& Tv": "entertainment",
+    "& Picture HD": "movies",
+   "Zee Tv": "entertainment",
+    "Zee Cinema HD": "movies",
+    "HUM TV": "entertainment",
+    "Sony Television HD": "entertainment",
+    "Sony Sab HD": "entertainment",
+    "ZB Cinema": "🇮🇳 Indian Bangla",
+    "Deshi Tv": "🇧🇩 Bangla"
+
+
   },
   "channelLogos": {
     "ATN Bangla": "https://commons.wikimedia.org/wiki/Special:FilePath/ATN_Bangla.svg",
@@ -80,6 +94,10 @@
   "channelAliases": {
     "Tsports": "T Sports",
     "T Sports HD": "T Sports",
-    "T-Sports": "T Sports"
+    "T-Sports": "T Sports",
+    "SONY ENTERTAINMENT TELEVISION": "Sony Television",
+   "Ananda TV": "Ananda", 
+    "Deepto": "Deepto TV",
+    "Ekattor TV": "Ekattor TV"
   }
 }
