@@ -1262,18 +1262,21 @@ function renderLiveEventsRow() {
   const row = $("#liveEventsRow");
   if (!section || !row) return;
 
+  // The section itself never hides — it always stays in the same place on
+  // the page, even if none of its sources loaded or every channel in it is
+  // currently off. Only the row's contents depend on live status.
+  section.classList.remove("hidden");
+
   const list = CHANNELS.filter(
-    (c) => c.sourceTags && [...c.sourceTags].some((t) => LIVE_EVENTS_SOURCE_TAGS.has(t)) && isChannelVisible(c)
+    (c) => c.sourceTags && [...c.sourceTags].some((t) => LIVE_EVENTS_SOURCE_TAGS.has(t)) && c.liveStatus === "on"
   );
 
-  if (!list.length) {
-    section.classList.add("hidden");
-    stopLiveEventsAutoScroll();
-    return;
-  }
-
-  section.classList.remove("hidden");
   row.innerHTML = "";
+
+  if (!list.length) {
+    stopLiveEventsAutoScroll();
+    return; // row stays empty — section/title/border are still shown
+  }
 
   list.forEach((chan) => {
     const card = document.createElement("div");
