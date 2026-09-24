@@ -10,7 +10,9 @@ const PLAYLISTS = {
   tapmad: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u",
   fancode: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u",
   xniptv: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u",
-  nafitv: "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u"
+  nafitv: "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u",
+  fastiptv2: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u"
+
 };
 // ===================================================
 
