@@ -10,6 +10,7 @@ const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&c
 const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
+const M3U_URL_FASTIPTV2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
@@ -19,6 +20,7 @@ const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-b
 const M3U_SOURCES = [
   { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
+  { url: M3U_URL_FASTIPTV2, type: "m3u", source: "FASTIPTV 2" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "Tapmad-BD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
