@@ -33,7 +33,6 @@
     "Goal TV",
     "Xtrem Sports",
     "WOF 1",
-    "Willow",
     "Start Sports Hindi",
     "Depot",
     "MadaniTV",
@@ -43,16 +42,16 @@
     "TV ONE"
   ],
   "categories": [
-    { "key": "sports", "label": "🏏 Sports", "match": "sport|fifa|cricket|golf|racing|f1\\b" },
-    { "key": "bangla", "label": "🇧🇩 Bangla", "match": "^bangla$|bangladeshi" },
-    { "key": "news", "label": "📰 News", "match": "news" },
-    { "key": "music", "label": "🎵 Music", "match": "music" },
-    { "key": "movies", "label": "🍿 Movies", "match": "movie" },
-    { "key": "entertainment", "label": "🎭 Entertainment", "match": "entertainment" },
-    { "key": "kids", "label": "🧸 Kids", "match": "kids" },
-    { "key": "lifestyle", "label": "📖 Lifestyle", "match": "document|lifestyle" },
-    { "key": "indian_bangla", "label": "🇮🇳 Indian Bangla", "match": "indian.?bangla|kolkata" },
-    { "key": "religious", "label": "🛐 Religious", "match": "islamic|religious" }
+    { "key": "sports", "label": "Sports", "match": "sport|fifa|cricket|golf|racing|f1\\b" },
+    { "key": "bangla", "label": "Bangla", "match": "^bangla$|bangladeshi" },
+    { "key": "news", "label": "News", "match": "news" },
+    { "key": "music", "label": "Music", "match": "music" },
+    { "key": "movies", "label": "Movies", "match": "movie" },
+    { "key": "entertainment", "label": "Entertainment", "match": "entertainment" },
+    { "key": "kids", "label": "Kids", "match": "kids" },
+    { "key": "lifestyle", "label": "Lifestyle", "match": "document|lifestyle" },
+    { "key": "indian_bangla", "label": "Indian Bangla", "match": "indian.?bangla|kolkata" },
+    { "key": "religious", "label": "Religious", "match": "islamic|religious" }
   ],
   "channelCategories": {
     "Bengali Beats": "music",
