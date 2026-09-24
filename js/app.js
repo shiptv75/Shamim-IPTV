@@ -2,7 +2,6 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
-const M3U_URL = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
 const M3U_URL_2 = "https://shamimiptv.pages.dev/api/proxy?playlist=fastiptv&code=554075";
 const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
 const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
@@ -18,7 +17,6 @@ const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
 
 const M3U_SOURCES = [
-  { url: M3U_URL, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
   { url: M3U_URL_FASTIPTV2, type: "m3u", source: "FASTIPTV 2" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "Tapmad-BD" },
@@ -450,16 +448,16 @@ async function fetchAdminConfig() {
 // supplies its own "categories" list (see fetchAdminConfig below), so the
 // site keeps working even if that file is missing or briefly unreachable.
 let CATEGORY_DEFS = [
-  { key: "sports", label: "🏏 Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
-  { key: "bangla", label: "🇧🇩 Bangla", match: /^bangla$|bangladeshi/i },
-  { key: "news", label: "📰 News", match: /news/i },
-  { key: "music", label: "🎵 Music", match: /music/i },
-  { key: "movies", label: "🍿 Movies", match: /movie/i },
-  { key: "entertainment", label: "🎭 Entertainment", match: /entertainment/i },
-  { key: "kids", label: "🧸 Kids", match: /kids/i },
-  { key: "lifestyle", label: "📖 Lifestyle", match: /document|lifestyle/i },
-  { key: "indian_bangla", label: "🇮🇳 Indian Bangla", match: /indian.?bangla|kolkata/i },
-  { key: "religious", label: "🛐 Religious", match: /islamic|religious/i },
+  { key: "sports", label: "Sports", match: /sport|fifa|cricket|golf|racing|f1\b/i },
+  { key: "bangla", label: "Bangla", match: /^bangla$|bangladeshi/i },
+  { key: "news", label: "News", match: /news/i },
+  { key: "music", label: "Music", match: /music/i },
+  { key: "movies", label: "Movies", match: /movie/i },
+  { key: "entertainment", label: "Entertainment", match: /entertainment/i },
+  { key: "kids", label: "Kids", match: /kids/i },
+  { key: "lifestyle", label: "Lifestyle", match: /document|lifestyle/i },
+  { key: "indian_bangla", label: "Indian Bangla", match: /indian.?bangla|kolkata/i },
+  { key: "religious", label: "Religious", match: /islamic|religious/i },
 ];
 
 // Per-channel category overrides from admin-config.json ("channelCategories"),
