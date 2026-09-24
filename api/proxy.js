@@ -5,7 +5,6 @@ const EXPIRE_CODE = "554075";
 
 // মূল M3U প্লেলিস্ট URL
 const PLAYLISTS = {
-  shiptv: "https://raw.githubusercontent.com/shiptv75/SHIPTV/main/playlist.m3u",
   fastiptv: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u",
   tapmad: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u",
   fancode: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u",
