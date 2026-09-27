@@ -8,7 +8,7 @@ const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&c
 const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
 const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
 const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
-const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
+const M3U_URL_SHIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
@@ -23,7 +23,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
   { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
-  { url: M3U_URL_DEVM3U, type: "m3u", source: "DevM3U" },
+  { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "TV9-Toffee" },
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
   { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
@@ -34,7 +34,9 @@ const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 // Any channel carrying one of these source tags shows up in the "Live Events" bar
 const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
+  "FanCode",
   "FanCode-BD",
+  "Tapmad-BD",
   "Tapmad-Events",
 ]);
 const CORS_PROXIES = [
