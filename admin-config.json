@@ -51,7 +51,7 @@
     { "key": "kids", "label": "Kids", "match": "kids" },
     { "key": "lifestyle", "label": "Lifestyle", "match": "document|lifestyle" },
     { "key": "indian_bangla", "label": "Indian Bangla", "match": "indian.?bangla|kolkata" },
-    { "key": "religious", "label": "Religious", "match": "islamic|religious" }
+    { "key": "religious", "label": "Religious", "match": "islam|islamic|religious" }
   ],
   "channelCategories": {
     "Bengali Beats": "music",
