@@ -2,13 +2,12 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
+const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
-const M3U_URL_2 = "https://shamimiptv.pages.dev/api/proxy?playlist=fastiptv&code=554075";
-const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
-const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
-const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
-const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
-const M3U_URL_SHIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
+const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
+const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
+const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
+const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/30-09-26-Link-1%20(1).m3u";
 
@@ -16,19 +15,20 @@ const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/r
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
+const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 
 const M3U_SOURCES = [
-  { url: M3U_URL, type: "m3u", source: "FAST-IPTV 2" },
-  { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
-  { url: M3U_URL_M3U_WORLD, type: "m3u", source: "M3U World" },
-  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
-  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
-  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
+  { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
+  { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
+  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
+  { url: M3U_URL_M3U_WORLD, type: "m3u", source: "M3U World" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "Toffee" },
+  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
-  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode" },
-  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad" },
+  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
+  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -37,7 +37,6 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode",
   "FanCode-BD",
-  "Tapmad-BD",
   "Tapmad-Events",
 ]);
 const CORS_PROXIES = [
