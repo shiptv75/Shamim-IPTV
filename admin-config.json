@@ -66,10 +66,10 @@
     "HUM TV": "entertainment",
     "Sony Television HD": "entertainment",
     "Sony Sab HD": "entertainment",
-    "ZB Cinema": "Indian Bangla",
-    "Deshi Tv": "Bangla",
-    "Sony Aath": "Indian Bangla",
-    "Global TV": "Bangla"
+    "ZB Cinema": "indian_bangla",
+    "Deshi Tv": "bangla",
+    "Sony Aath": "indian_bangla",
+    "Global TV": "bangla"
 
 
   },
