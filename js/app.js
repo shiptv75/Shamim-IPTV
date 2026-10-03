@@ -15,7 +15,6 @@ const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/r
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
-const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
