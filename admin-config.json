@@ -43,7 +43,7 @@
   ],
   "categories": [
     { "key": "sports", "label": "Sports", "match": "sport|fifa|cricket|golf|racing|f1\\b" },
-    { "key": "bangla", "label": "Bangla", "match": "^bangla$|bangladeshi" },
+    { "key": "bangla", "label": "Bangla", "match": "bangladesh|bangladeshi" },
     { "key": "news", "label": "News", "match": "news" },
     { "key": "music", "label": "Music", "match": "music" },
     { "key": "movies", "label": "Movies", "match": "movie" },
