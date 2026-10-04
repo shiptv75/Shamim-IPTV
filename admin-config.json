@@ -75,7 +75,20 @@
     "DBC News": "news",
     "Channel 24": "news",
     "Ekhon": "news",
-    "JALSHA MOVIES": "movies"
+    "JALSHA MOVIES": "movies",
+    "Mohona Tv": "bangla",
+    "Sony Max HD": "movies",
+    "Sony Television:" "entertainment",
+    "Channel S": "bangla",
+    "SRK TV": "bangla",
+    "Sony Max 2": "movies",
+    "B4U Movie": "movies",
+    "NTV": "bangla",
+    "GTV": "bangla",
+    "Ekushey TV": "bangla",
+    "Deshi TV HD": "bangla",
+    "Ekhon tv": "news",
+    "Deshe Bideshe": "bangla"
 
 
   },
@@ -105,6 +118,7 @@
     "SONY ENTERTAINMENT TELEVISION": "Sony Television",
    "Ananda TV": "Ananda", 
     "Deepto": "Deepto TV",
-    "Ekattor TV": "Ekattor TV"
+    "Ekattor TV": "Ekattor TV",
+    
   }
 }
