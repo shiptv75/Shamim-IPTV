@@ -2,13 +2,12 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
+const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
-const M3U_URL_2 = "https://shamimiptv.pages.dev/api/proxy?playlist=fastiptv&code=554075";
-const M3U_URL_TAPMAD = "https://shamimiptv.pages.dev/api/proxy?playlist=tapmad&code=554075";
-const M3U_URL_FANCODE = "https://shamimiptv.pages.dev/api/proxy?playlist=fancode&code=554075";
-const M3U_URL_XNIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=xniptv&code=554075";
-const M3U_URL_NAFITV = "https://shamimiptv.pages.dev/api/proxy?playlist=nafitv&code=554075";
-const M3U_URL_SHIPTV = "https://shamimiptv.pages.dev/api/proxy?playlist=shiptv&code=554075";
+const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
+const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
+const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
+const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/30-09-26-Link-1%20(1).m3u";
 
@@ -18,17 +17,17 @@ const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/
 const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
 
 const M3U_SOURCES = [
-  { url: M3U_URL, type: "m3u", source: "FAST-IPTV 2" },
-  { url: M3U_URL_2, type: "m3u", source: "FAST-IPTV" },
-  { url: M3U_URL_M3U_WORLD, type: "m3u", source: "M3U World" },
-  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
-  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
-  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
+  { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
+  { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
+  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
+  { url: M3U_URL_M3U_WORLD, type: "m3u", source: "M3U World" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "Toffee" },
+  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
-  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode" },
-  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad" },
+  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
+  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -37,7 +36,6 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode",
   "FanCode-BD",
-  "Tapmad-BD",
   "Tapmad-Events",
 ]);
 const CORS_PROXIES = [
@@ -72,6 +70,13 @@ let cvIsSeeking = false;
 let cvControlsTimer = null;
 let cvStallTimer = null;
 let cvVideoCheckTimer = null;
+
+// ---- Split-view (second channel) player state — a deliberately simpler,
+// self-contained engine: no quality selector, no server-switch menu, no
+// stall watchdog. Just load + play + mute + close. ----
+let splitChannel = null;
+let splitHlsInstance = null;
+let splitMpegtsInstance = null;
 
 // ---------- Utility ----------
 const $ = (sel) => document.querySelector(sel);
@@ -941,6 +946,9 @@ function channelCard(chan) {
     <button class="chan-fav ${isFav ? "on" : ""}" aria-label="প্রিয়" data-id="${chan.id}">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10.2-9.2C.3 8.7 1.8 5 5.4 4.3c2-.4 3.9.5 5 2.2l1.6 2.4 1.6-2.4c1.1-1.7 3-2.6 5-2.2 3.6.7 5.1 4.4 3.6 7.5C19.5 16.4 12 21 12 21z"/></svg>
     </button>
+    <button class="chan-split-add" aria-label="দ্বিতীয় স্লটে খুলুন" data-id="${chan.id}" title="দ্বিতীয় চ্যানেল হিসেবে চালু করুন">
+      <i class="fa-solid fa-plus"></i>
+    </button>
     <span class="chan-status ${statusClass(chan.liveStatus)}" title="স্ট্রিম স্ট্যাটাস">${statusText(chan.liveStatus)}</span>
     <div class="chan-icon-box">
       ${badgeHtml}
@@ -954,7 +962,7 @@ function channelCard(chan) {
   `;
 
   card.addEventListener("click", (e) => {
-    if (e.target.closest(".chan-fav")) return;
+    if (e.target.closest(".chan-fav") || e.target.closest(".chan-split-add")) return;
     if (chan.liveStatus === "off") { toast("এই চ্যানেলটি এখন চালু করা যাচ্ছে না"); return; }
     openPlayer(chan);
   });
@@ -965,6 +973,12 @@ function channelCard(chan) {
     e.currentTarget.classList.toggle("on");
     updateChipCounts();
     if (currentChip === "favs") applyFilters();
+  });
+
+  card.querySelector(".chan-split-add").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (chan.liveStatus === "off") { toast("এই চ্যানেলটি এখন চালু করা যাচ্ছে না"); return; }
+    openSplitChannel(chan);
   });
 
   if (chan.liveStatus === "checking") getStatusObserver().observe(card);
@@ -1403,6 +1417,91 @@ function closePlayer() {
   $("#player-channel-title").textContent = "Select a Channel to Stream";
   $("#player-channel-status").textContent = "System Engine: Ready";
   currentChannel = null;
+}
+
+// ---------- Split view (second channel slot) ----------
+function destroySplitPlayers() {
+  if (splitHlsInstance) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; }
+  if (splitMpegtsInstance) { try { splitMpegtsInstance.destroy(); } catch {} splitMpegtsInstance = null; }
+  const v = $("#splitVideoNode");
+  if (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch {} }
+}
+
+function openSplitChannel(chan) {
+  if (!chan.sources || !chan.sources.length) { toast("এই চ্যানেলের কোনো সোর্স নেই"); return; }
+
+  splitChannel = chan;
+  const shell = $("#splitShell");
+  const wrap = $("#playerSplitWrap");
+  const video = $("#splitVideoNode");
+  const loader = $("#splitLoader");
+  const title = $("#splitChannelTitle");
+  if (!shell || !wrap || !video) return;
+
+  wrap.classList.add("split-active");
+  shell.classList.remove("hidden");
+  title.textContent = chan.name;
+  video.muted = true; // starts muted by design — tap the speaker icon to unmute
+  $("#splitMuteBtn i")?.classList.remove("fa-volume-high");
+  $("#splitMuteBtn i")?.classList.add("fa-volume-xmark");
+
+  destroySplitPlayers();
+  loader?.classList.add("active");
+
+  const url = chan.sources[0];
+  const hideLoader = () => loader?.classList.remove("active");
+
+  const tryNative = () => {
+    video.src = url;
+    video.play().catch(() => {});
+  };
+
+  const tryMpegts = () => {
+    if (typeof mpegts === "undefined" || !mpegts.isSupported()) { tryNative(); return; }
+    splitMpegtsInstance = mpegts.createPlayer({
+      type: "mpegts", url, isLive: true, enableWorker: true, cors: true, withCredentials: false, liveBufferLatencyChasing: true,
+    });
+    splitMpegtsInstance.attachMediaElement(video);
+    splitMpegtsInstance.on(mpegts.Events.ERROR, () => { try { splitMpegtsInstance.destroy(); } catch {} splitMpegtsInstance = null; tryNative(); });
+    splitMpegtsInstance.load();
+    splitMpegtsInstance.play().catch(() => {});
+  };
+
+  const tryHls = () => {
+    if (window.Hls && Hls.isSupported() && /\.m3u8(\?.*)?$/i.test(url)) {
+      splitHlsInstance = new Hls();
+      splitHlsInstance.loadSource(url);
+      splitHlsInstance.attachMedia(video);
+      splitHlsInstance.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; tryNative(); } });
+      video.play().catch(() => {});
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      tryNative();
+    } else {
+      tryNative();
+    }
+  };
+
+  if (isTsStream(url)) tryMpegts();
+  else tryHls();
+
+  video.onplaying = hideLoader;
+  video.onerror = hideLoader;
+}
+
+function closeSplitChannel() {
+  destroySplitPlayers();
+  splitChannel = null;
+  $("#splitShell")?.classList.add("hidden");
+  $("#playerSplitWrap")?.classList.remove("split-active");
+}
+
+function toggleSplitMute() {
+  const video = $("#splitVideoNode");
+  const icon = $("#splitMuteBtn i");
+  if (!video) return;
+  video.muted = !video.muted;
+  icon?.classList.toggle("fa-volume-xmark", video.muted);
+  icon?.classList.toggle("fa-volume-high", !video.muted);
 }
 
 // ── same channel selected from grid/float-list/prev-next ──
