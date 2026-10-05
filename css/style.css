@@ -520,6 +520,14 @@ a{ color: inherit; text-decoration: none; }
 .chan-status.status-on{ background: var(--glow); color:#04170c; box-shadow: 0 0 10px rgba(0,217,132,.6); }
 .chan-status.status-off{ background: var(--danger); color:#fff; }
 .chan-status.status-checking{ background: rgba(255,255,255,.15); color: var(--muted); }
+.chan-split-add{
+  position:absolute; bottom:8px; right:8px; width:24px; height:24px; z-index:3;
+  display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px;
+  border-radius:50%; background: rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15);
+  transition: background .15s, transform .15s;
+}
+.chan-split-add:hover{ background: var(--sig); transform: scale(1.08); }
+.icon-grid .chan-split-add{ width:18px; height:18px; bottom:4px; right:4px; font-size:8px; }
 .chan-pin-mark{
   position:absolute; top:8px; left:8px; z-index:2; color: var(--gold); font-size:12px;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
@@ -605,6 +613,23 @@ a{ color: inherit; text-decoration: none; }
 .player-pane{
   position: sticky; top: 121px;
   flex: 1 1 auto; min-width:0;
+}
+.player-split-wrap{ display:flex; flex-direction:row; gap:14px; width:100%; }
+.player-split-wrap .dp-player-main-card-wrapper{ flex:1 1 0; min-width:0; }
+.player-split-wrap:not(.split-active) .dp-player-main-card-wrapper:first-child{ flex:1 1 100%; }
+
+.split-shell{ display:flex; flex-direction:column; }
+.split-frame{
+  position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; flex-shrink:0;
+}
+.split-frame video{ width:100% !important; height:100% !important; object-fit:contain; display:block; }
+.split-topright-overlay{ position:absolute; top:10px; right:10px; z-index:20; display:flex; align-items:center; gap:6px; }
+.split-topright-overlay .cv-topright-btn{ width:30px; height:30px; font-size:13px; }
+.split-meta{ padding:12px 14px; }
+.split-meta .dp-meta-channel-name{ font-size:13.5px; }
+
+@media (max-width: 860px){
+  .player-split-wrap{ flex-direction:column; }
 }
 .cv-shell{
   width:100%; margin:0;
