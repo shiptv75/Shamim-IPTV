@@ -1,17 +1,18 @@
 // ===================================================
 // সিক্রেট আইডি (প্রয়োজনে পরিবর্তন করুন)
 // ===================================================
-const EXPIRE_CODE = "554075"; 
+const EXPIRE_CODE = "554075";
 
-// মূল M3U প্লেলিস্ট URL
+// মূল M3U প্লেলিস্ট URL (এখন app.js সরাসরি raw URL ব্যবহার করে, তাই এই
+// ম্যাপটা এখন শুধু রেফারেন্স হিসেবে রাখা হয়েছে — playlist= রুটের জন্য আর
+// ব্যবহার হচ্ছে না, কিন্তু ভবিষ্যতে দরকার হলে কাজে লাগতে পারে)
 const PLAYLISTS = {
   fastiptv: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u",
   tapmad: "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u",
   fancode: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u",
   xniptv: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u",
   nafitv: "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u",
-  fastiptv2: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u"
-
+  fastiptv2: "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u",
 };
 // ===================================================
 
@@ -30,13 +31,17 @@ export default async function handler(req, res) {
   const requestUrl = req.url || '';
 
   // ---------------------------------------------------------
-  // ১. M3U প্লেলিস্ট রিকোয়েস্ট (যেমন: /api/proxy/playlist-expire=48436844.m3u)
+  // ১. M3U প্লেলিস্ট রিকোয়েস্ট (যেমন: /api/proxy?playlist=tapmad&code=554075)
   // ---------------------------------------------------------
-  if (!req.query.url && (requestUrl.includes('.m3u') || requestUrl.includes('playlist-expire'))) {
-    
+  if (!req.query.url && req.query.playlist) {
     // সিকিউরিটি কোড যাচাইকরণ
-    if (EXPIRE_CODE && !requestUrl.includes(EXPIRE_CODE)) {
+    if (EXPIRE_CODE && req.query.code !== EXPIRE_CODE) {
       return res.status(403).json({ error: 'Access Denied: Invalid or Expired ID' });
+    }
+
+    const PLAYLIST_URL = PLAYLISTS[req.query.playlist];
+    if (!PLAYLIST_URL) {
+      return res.status(404).json({ error: `Unknown playlist key: ${req.query.playlist}` });
     }
 
     try {
@@ -77,7 +82,8 @@ export default async function handler(req, res) {
   }
 
   // ---------------------------------------------------------
-  // ২. নির্দিষ্ট চ্যানেল ও ভিডিও স্ট্রিম ফেচিং
+  // ২. নির্দিষ্ট চ্যানেল ও ভিডিও স্ট্রিম ফেচিং (app.js এখন সব স্ট্রিমের
+  //    জন্য এই রুটটাই ব্যবহার করে — ?url=<আসল স্ট্রিম URL>)
   // ---------------------------------------------------------
   const targetUrl = req.query.url;
   if (!targetUrl) {
@@ -100,12 +106,12 @@ export default async function handler(req, res) {
     }
 
     const contentType = response.headers.get('content-type') || '';
-    const finalUrl = response.url; 
+    const finalUrl = response.url;
 
     // M3U8 বা সাব-প্লেলিস্ট চেক
-    const isPlaylist = targetUrl.includes('.m3u') || 
-                       contentType.includes('mpegurl') || 
-                       contentType.includes('m3u') || 
+    const isPlaylist = targetUrl.includes('.m3u') ||
+                       contentType.includes('mpegurl') ||
+                       contentType.includes('m3u') ||
                        contentType.includes('text/plain');
 
     if (isPlaylist) {
@@ -149,14 +155,13 @@ export default async function handler(req, res) {
       return res.status(200).send(text);
     }
 
-    // TS/AAC/MP4 ভিডিও সেগমেন্ট প্লেয়ারে পাঠানো
+    // TS/AAC/MP4 ভিডিও সেগমেন্ট প্লেয়ারে পাঠানো
     const arrayBuffer = await response.arrayBuffer();
     res.setHeader('Content-Type', contentType || 'video/mp2t');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     return res.status(200).send(Buffer.from(arrayBuffer));
 
   } catch (error) {
-    return res.status(500).json({ error: error.message }
-                                
+    return res.status(500).json({ error: error.message });
   }
 }
