@@ -38,6 +38,19 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "FanCode-BD",
   "Tapmad-Events",
 ]);
+// Wraps a real stream URL through the site's own Cloudflare proxy. The
+// proxy fetches the stream with a spoofed Referer/Origin matching the
+// stream's own domain — several protected CDNs (Willow Sports among them)
+// reject direct browser requests whose Referer is our own site, so routing
+// playback through here is what keeps those channels working. The proxy's
+// own response also rewrites any segment/sub-playlist URLs inside an m3u8
+// to loop back through itself, so only the entry URL needs wrapping here.
+const STREAM_PROXY_BASE = "https://shamimiptv.pages.dev/api/proxy?url=";
+function proxyWrapStream(url) {
+  if (!url) return url;
+  return STREAM_PROXY_BASE + encodeURIComponent(url);
+}
+
 const CORS_PROXIES = [
   (u) => u, // try direct first
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -77,6 +90,8 @@ let cvVideoCheckTimer = null;
 let splitChannel = null;
 let splitHlsInstance = null;
 let splitMpegtsInstance = null;
+let splitServerIndex = 0;
+let splitStallTimer = null;
 
 // ---------- Utility ----------
 const $ = (sel) => document.querySelector(sel);
@@ -1431,30 +1446,45 @@ function openSplitChannel(chan) {
   if (!chan.sources || !chan.sources.length) { toast("এই চ্যানেলের কোনো সোর্স নেই"); return; }
 
   splitChannel = chan;
-  const shell = $("#splitShell");
-  const wrap = $("#playerSplitWrap");
+  splitServerIndex = 0;
+  $("#playerSplitWrap")?.classList.add("split-active");
+  $("#splitShell")?.classList.remove("hidden");
+  $("#splitChannelTitle").textContent = chan.name;
+
+  const video = $("#splitVideoNode");
+  if (video) {
+    video.muted = true; // starts muted by design — tap the speaker icon to unmute
+    $("#splitMuteBtn i")?.classList.remove("fa-volume-high");
+    $("#splitMuteBtn i")?.classList.add("fa-volume-xmark");
+  }
+
+  splitLoadServer(0);
+}
+
+// Tries chan.sources[index]; if it hasn't actually started playing within 9s,
+// automatically moves on to the next source — mirroring the main player's
+// stall watchdog. Without this, a channel only ever got one shot at its
+// first source and sat on a black screen if that particular one was down,
+// even when a later source for the same channel worked fine.
+function splitLoadServer(index) {
+  const chan = splitChannel;
+  if (!chan || !chan.sources[index]) {
+    $("#splitLoader")?.classList.remove("active");
+    toast(`${chan ? chan.name : "চ্যানেল"} — কোনো সার্ভার থেকেই চালু করা যাচ্ছে না`);
+    return;
+  }
+
+  splitServerIndex = index;
+  const url = proxyWrapStream(chan.sources[index]);
   const video = $("#splitVideoNode");
   const loader = $("#splitLoader");
-  const title = $("#splitChannelTitle");
-  if (!shell || !wrap || !video) return;
-
-  wrap.classList.add("split-active");
-  shell.classList.remove("hidden");
-  title.textContent = chan.name;
-  video.muted = true; // starts muted by design — tap the speaker icon to unmute
-  $("#splitMuteBtn i")?.classList.remove("fa-volume-high");
-  $("#splitMuteBtn i")?.classList.add("fa-volume-xmark");
+  if (!video) return;
 
   destroySplitPlayers();
   loader?.classList.add("active");
 
-  const url = chan.sources[0];
   const hideLoader = () => loader?.classList.remove("active");
-
-  const tryNative = () => {
-    video.src = url;
-    video.play().catch(() => {});
-  };
+  const tryNative = () => { video.src = url; video.play().catch(() => {}); };
 
   const tryMpegts = () => {
     if (typeof mpegts === "undefined" || !mpegts.isSupported()) { tryNative(); return; }
@@ -1474,8 +1504,6 @@ function openSplitChannel(chan) {
       splitHlsInstance.attachMedia(video);
       splitHlsInstance.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; tryNative(); } });
       video.play().catch(() => {});
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      tryNative();
     } else {
       tryNative();
     }
@@ -1486,9 +1514,17 @@ function openSplitChannel(chan) {
 
   video.onplaying = hideLoader;
   video.onerror = hideLoader;
+
+  clearTimeout(splitStallTimer);
+  splitStallTimer = setTimeout(() => {
+    if (splitChannel !== chan || splitServerIndex !== index) return; // superseded already
+    if (video.readyState >= 2 && !video.paused) return; // actually playing, false alarm
+    splitLoadServer(index + 1);
+  }, 9000);
 }
 
 function closeSplitChannel() {
+  clearTimeout(splitStallTimer);
   destroySplitPlayers();
   splitChannel = null;
   $("#splitShell")?.classList.add("hidden");
@@ -1524,12 +1560,13 @@ function playChannel(ch) {
   }
 
   cvBuildServerListFromChannel(ch);
-  cvLoadStreamSource(ch.sources[0]);
+  cvLoadStreamSource(currentServerList[0].url);
 }
 
-// ── server list is simply the channel's own merged sources[] ──
+// ── server list is the channel's own merged sources[], each routed through
+// our own proxy so protected CDNs (Referer/Origin-checked) still work ──
 function cvBuildServerListFromChannel(ch) {
-  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url }));
+  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url: proxyWrapStream(url) }));
   currentServerIndex = 0;
   renderServerMenu();
 }
@@ -1573,6 +1610,17 @@ document.addEventListener("click", (e) => {
 // ── TS vs HLS detection heuristic ──
 function isTsStream(url) {
   if (!url) return false;
+  // If this is one of our own proxied URLs, test the REAL target URL inside
+  // it instead — encodeURIComponent keeps a trailing ".ts" intact, but a
+  // querystring on the original (very common for token-protected streams)
+  // pushes it away from the string's end, which would break every test
+  // below if we matched against the wrapped URL as-is.
+  if (url.startsWith(STREAM_PROXY_BASE)) {
+    try {
+      const inner = decodeURIComponent(url.slice(STREAM_PROXY_BASE.length));
+      if (inner && inner !== url) return isTsStream(inner);
+    } catch {}
+  }
   if (/\.m3u8(\?.*)?$/i.test(url)) return false;
   if (/\/mono\.m3u8/i.test(url)) return false;
   if (/\.ts(\?.*)?$/i.test(url)) return true;
