@@ -78,7 +78,7 @@
     "JALSHA MOVIES": "movies",
     "Mohona Tv": "bangla",
     "Sony Max HD": "movies",
-    "Sony Television:" "entertainment",
+    "Sony Television": "entertainment",
     "Channel S": "bangla",
     "SRK TV": "bangla",
     "Sony Max 2": "movies",
@@ -89,9 +89,6 @@
     "Deshi TV HD": "bangla",
     "Ekhon tv": "news",
     "Deshe Bideshe": "bangla"
-    "Ekhon": "news"
-
-
   },
   "channelLogos": {
     "ATN Bangla": "https://commons.wikimedia.org/wiki/Special:FilePath/ATN_Bangla.svg",
