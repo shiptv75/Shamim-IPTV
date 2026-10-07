@@ -630,7 +630,7 @@ async function probeViaTsSniff(url) {
 }
 
 // Probes a single stream URL the same way the player itself would load it.
-async function probeOneUrl(url) {
+async function probeOneUrlDirect(url) {
   try {
     if (/\.m3u8(\?|$)/i.test(url)) {
       const hlsResult = await withTimeout(probeViaHls(url), LIVE_CHECK_TIMEOUT);
@@ -643,6 +643,19 @@ async function probeOneUrl(url) {
   } catch {
     return false;
   }
+}
+
+// Most sources answer a plain direct request fine, so that's tried first and
+// wins immediately when it works — no extra delay for the common case. Only
+// when the direct attempt fails do we retry once through our own proxy
+// (which spoofs Referer/Origin): a handful of protected sources (Willow
+// Sports among them) reject direct requests outright but work once routed
+// the same way actual playback already is, and without this they'd show a
+// false OFF even though the channel genuinely plays.
+async function probeOneUrl(url) {
+  const direct = await probeOneUrlDirect(url);
+  if (direct) return true;
+  return probeOneUrlDirect(proxyWrapStream(url));
 }
 
 // Tries every merged source URL, all at once rather than one after another.
