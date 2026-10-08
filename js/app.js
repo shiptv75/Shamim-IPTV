@@ -14,7 +14,6 @@ const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/r
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
-const M3U_URL_TAPMAD_EVENTS = "https://raw.githubusercontent.com/srhady/tapmad-bd/refs/heads/main/tapmad_bd.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
@@ -27,7 +26,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
   { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode-BD" },
-  { url: M3U_URL_TAPMAD_EVENTS, type: "m3u", source: "Tapmad-Events" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -36,15 +34,13 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "SonyLiv",
   "FanCode",
   "FanCode-BD",
-  "Tapmad-Events",
 ]);
-// Wraps a real stream URL through the site's own Cloudflare proxy. The
-// proxy fetches the stream with a spoofed Referer/Origin matching the
-// stream's own domain — several protected CDNs (Willow Sports among them)
-// reject direct browser requests whose Referer is our own site, so routing
-// playback through here is what keeps those channels working. The proxy's
-// own response also rewrites any segment/sub-playlist URLs inside an m3u8
-// to loop back through itself, so only the entry URL needs wrapping here.
+// Wraps a real stream URL through the site's own Cloudflare proxy (spoofs
+// Referer/Origin — useful for Referer-protected CDNs). NOT currently used
+// anywhere: routing every stream through it broke far more channels
+// (FanCode etc.) than the handful it was meant to fix, so playback is back
+// to direct-only. Kept here in case a narrow, per-channel use makes sense
+// later, once the proxy's own reliability at scale is understood.
 const STREAM_PROXY_BASE = "https://shamimiptv.pages.dev/api/proxy?url=";
 function proxyWrapStream(url) {
   if (!url) return url;
@@ -645,17 +641,8 @@ async function probeOneUrlDirect(url) {
   }
 }
 
-// Most sources answer a plain direct request fine, so that's tried first and
-// wins immediately when it works — no extra delay for the common case. Only
-// when the direct attempt fails do we retry once through our own proxy
-// (which spoofs Referer/Origin): a handful of protected sources (Willow
-// Sports among them) reject direct requests outright but work once routed
-// the same way actual playback already is, and without this they'd show a
-// false OFF even though the channel genuinely plays.
 async function probeOneUrl(url) {
-  const direct = await probeOneUrlDirect(url);
-  if (direct) return true;
-  return probeOneUrlDirect(proxyWrapStream(url));
+  return probeOneUrlDirect(url);
 }
 
 // Tries every merged source URL, all at once rather than one after another.
@@ -1488,7 +1475,7 @@ function splitLoadServer(index) {
   }
 
   splitServerIndex = index;
-  const url = proxyWrapStream(chan.sources[index]);
+  const url = chan.sources[index];
   const video = $("#splitVideoNode");
   const loader = $("#splitLoader");
   if (!video) return;
@@ -1579,7 +1566,7 @@ function playChannel(ch) {
 // ── server list is the channel's own merged sources[], each routed through
 // our own proxy so protected CDNs (Referer/Origin-checked) still work ──
 function cvBuildServerListFromChannel(ch) {
-  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url: proxyWrapStream(url) }));
+  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url }));
   currentServerIndex = 0;
   renderServerMenu();
 }
