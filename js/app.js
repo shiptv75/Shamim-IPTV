@@ -16,6 +16,7 @@ const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/h
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 
 const M3U_SOURCES = [
+  { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
