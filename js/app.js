@@ -561,25 +561,43 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+// Token/session-gated stream URLs (signed CDN links) are exactly the ones
+// where a manifest can parse successfully even after the token has expired
+// — the manifest file itself stays valid, but every segment it points to
+// then 403s. This is where "ON but actually dead" concentrates (beIN
+// Sports, LaLiga, FanCode, TUDN and similar premium sports feeds almost
+// always use signed URLs), while plain live-TV CDN links rarely do. Flagging
+// these lets the probe spend its extra scrutiny only where it's actually
+// needed, instead of slowing every channel down for the sake of a few.
+function looksTokenGated(url) {
+  return /hdnea|hdnts|token=|signature=|policy=|expires=|exp=|auth_key|X-Amz-Signature/i.test(url);
+}
+
 function probeViaHls(url) {
   return new Promise((resolve) => {
     if (!window.Hls || !Hls.isSupported()) { resolve(null); return; } // can't tell — fall back to fetch
     let done = false;
-    const hls = new Hls({ manifestLoadingTimeOut: LIVE_CHECK_TIMEOUT, manifestLoadingMaxRetry: 0 });
+    const hls = new Hls({ manifestLoadingTimeOut: LIVE_CHECK_TIMEOUT, manifestLoadingMaxRetry: 0, fragLoadingMaxRetry: 0 });
     const finish = (ok) => {
       if (done) return;
       done = true;
       try { hls.destroy(); } catch {}
       resolve(ok);
     };
-    // Speed over perfect accuracy here: a parsed manifest is enough proof
-    // for us to call a channel ON. Waiting further for a real video segment
-    // catches a few more geo-blocked/token-expired channels (like the TNT
-    // series) but makes checking every channel noticeably slower — and a
-    // slow, untrustworthy-feeling load is worse than occasionally leaving a
-    // dead channel marked ON. This never risks marking a genuinely live
-    // channel as OFF, which is the one thing that must not happen.
-    hls.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
+    const needsSegmentProof = looksTokenGated(url);
+    // Speed over perfect accuracy for most channels — a parsed manifest is
+    // enough proof to call a channel ON, since waiting for a real segment on
+    // every single channel would make the whole scan noticeably slower. But
+    // for token-gated URLs (see looksTokenGated above) a parsed manifest
+    // genuinely doesn't prove anything — the manifest can stay valid long
+    // after the token has expired — so those specifically wait for a real
+    // segment (FRAG_LOADED) before being called ON. This never risks
+    // marking a genuinely live channel as OFF, which must not happen.
+    if (needsSegmentProof) {
+      hls.on(Hls.Events.FRAG_LOADED, () => finish(true));
+    } else {
+      hls.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
+    }
     hls.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) finish(false); });
     try { hls.loadSource(url); } catch { finish(false); }
   });
@@ -629,7 +647,8 @@ async function probeViaTsSniff(url) {
 async function probeOneUrlDirect(url) {
   try {
     if (/\.m3u8(\?|$)/i.test(url)) {
-      const hlsResult = await withTimeout(probeViaHls(url), LIVE_CHECK_TIMEOUT);
+      const hlsTimeout = looksTokenGated(url) ? LIVE_CHECK_TIMEOUT + 3000 : LIVE_CHECK_TIMEOUT;
+      const hlsResult = await withTimeout(probeViaHls(url), hlsTimeout);
       return hlsResult === null ? await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT) : hlsResult;
     }
     if (isTsStream(url)) {
