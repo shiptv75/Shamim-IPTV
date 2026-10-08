@@ -2,14 +2,14 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
+const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
-const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
-const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/30-09-26-Link-1%20(1).m3u";
+const M3U_URL_M3U_WORLD = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
