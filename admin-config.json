@@ -39,19 +39,71 @@
     "PeaceTV",
     "DBC",
     "NTV HD",
-    "TV ONE"
+    "TV ONE",
+    "Win Sports",
+    "beIN Sports",
+    "D Sports",
+    "TUDN",
+    "Bein Sports 1",
+    "Bein Sports 2",
+    "Bein Sports 3",
+    "Bein Sports 4",
+    "Bein Sports 5",
+    "Laliga HD",
+    "Fancode 1",
+    "Fancode 2"
   ],
   "categories": [
-    { "key": "sports", "label": "Sports", "match": "sport|sports" },
-    { "key": "bangla", "label": "Bangla", "match": "bangladesh|bangladeshi" },
-    { "key": "news", "label": "News", "match": "news" },
-    { "key": "music", "label": "Music", "match": "music" },
-    { "key": "movies", "label": "Movies", "match": "movie" },
-    { "key": "entertainment", "label": "Entertainment", "match": "entertainment" },
-    { "key": "kids", "label": "Kids", "match": "kids" },
-    { "key": "lifestyle", "label": "Lifestyle", "match": "document|lifestyle" },
-    { "key": "indian_bangla", "label": "Indian Bangla", "match": "indian.?bangla|kolkata" },
-    { "key": "religious", "label": "Religious", "match": "islam|islamic|religious" }
+    {
+      "key": "sports",
+      "label": "Sports",
+      "match": "sport|sports"
+    },
+    {
+      "key": "bangla",
+      "label": "Bangla",
+      "match": "bangladesh|bangladeshi"
+    },
+    {
+      "key": "news",
+      "label": "News",
+      "match": "news"
+    },
+    {
+      "key": "music",
+      "label": "Music",
+      "match": "music"
+    },
+    {
+      "key": "movies",
+      "label": "Movies",
+      "match": "movie"
+    },
+    {
+      "key": "entertainment",
+      "label": "Entertainment",
+      "match": "entertainment"
+    },
+    {
+      "key": "kids",
+      "label": "Kids",
+      "match": "kids"
+    },
+    {
+      "key": "lifestyle",
+      "label": "Lifestyle",
+      "match": "document|lifestyle"
+    },
+    {
+      "key": "indian_bangla",
+      "label": "Indian Bangla",
+      "match": "indian.?bangla|kolkata"
+    },
+    {
+      "key": "religious",
+      "label": "Religious",
+      "match": "islam|islamic|religious"
+    }
   ],
   "channelCategories": {
     "Bengali Beats": "music",
@@ -61,7 +113,7 @@
     "Colors HD": "entertainment",
     "& Tv": "entertainment",
     "& Picture HD": "movies",
-   "Zee Tv": "entertainment",
+    "Zee Tv": "entertainment",
     "Zee Cinema HD": "movies",
     "HUM TV": "entertainment",
     "Sony Television HD": "entertainment",
@@ -114,10 +166,9 @@
     "T Sports HD": "T Sports",
     "T-Sports": "T Sports",
     "SONY ENTERTAINMENT TELEVISION": "Sony Television",
-   "Ananda TV": "Ananda", 
+    "Ananda TV": "Ananda",
     "Deepto": "Deepto TV",
     "Ekattor TV": "Ekattor TV",
     "Ekhon": "Ekhon tv"
-    
   }
 }
