@@ -2,7 +2,7 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
-const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
+const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
 const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
@@ -17,7 +17,7 @@ const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/h
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 
 const M3U_SOURCES = [
-  { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
+  { url: M3U_URL_DEVM3U, type: "m3u", source: "DEV M3U" },
   { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
