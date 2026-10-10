@@ -171,4 +171,8 @@
     "Ekattor TV": "Ekattor TV",
     "Ekhon": "Ekhon tv"
   }
+  "updates": [
+  { "event": "BPL T20 - 5th Match", "channel": "T Sports" },
+  { "event": "El Clasico Live", "channel": "beIN Sports 1" }
+]
 }
