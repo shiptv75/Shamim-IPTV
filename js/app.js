@@ -453,6 +453,13 @@ function applyAdminConfigData(data) {
   ADMIN_CHANNEL_ALIASES = new Map(
     Object.entries(data.channelAliases || {}).map(([variant, canonical]) => [slugify(variant), canonical])
   );
+
+  // Optional: a manually curated "what's on now" ticker shown inline next
+  // to the Live Events title, e.g.
+  // "updates": [ { "event": "BPL T20 - 5th Match", "channel": "T Sports" } ]
+  // Each entry links an event label to an existing channel by name — the
+  // ticker shows that channel's logo and opens it on click.
+  ADMIN_UPDATES = Array.isArray(data.updates) ? data.updates : [];
 }
 
 function getFreshCachedAdminConfig() {
@@ -499,6 +506,7 @@ let CATEGORY_DEFS = [
 let ADMIN_CHANNEL_CATEGORY = new Map();
 let ADMIN_CHANNEL_LOGO = new Map();
 let ADMIN_CHANNEL_ALIASES = new Map();
+let ADMIN_UPDATES = [];
 
 function categorize(chan) {
   const override = ADMIN_CHANNEL_CATEGORY.get(slugify(chan.name));
@@ -1213,6 +1221,7 @@ function relistNow() {
   applyFilters();
   renderResumeRow();
   renderLiveEventsRow();
+  renderUpdatesTicker();
 
   if (pane) pane.scrollTop = paneScroll;
   if (window.scrollY !== pageScroll) window.scrollTo(0, pageScroll);
@@ -1317,6 +1326,45 @@ function startResumeAutoScroll(row) {
       row.scrollBy({ left: 160, behavior: "smooth" });
     }
   }, 3000);
+}
+
+// ---------- Updates ticker (inline in the Live Events header) ----------
+function renderUpdatesTicker() {
+  const ticker = $("#updatesTicker");
+  const track = $("#updatesTickerTrack");
+  if (!ticker || !track) return;
+
+  const items = [];
+  ADMIN_UPDATES.forEach((u) => {
+    if (!u || !u.event || !u.channel) return;
+    const chan = CHANNELS.find((c) => c.id === slugify(u.channel));
+    if (!chan) return; // referenced channel not currently loaded — skip silently
+    items.push({ event: u.event, chan });
+  });
+
+  if (!items.length) {
+    ticker.classList.add("hidden");
+    track.innerHTML = "";
+    return;
+  }
+
+  ticker.classList.remove("hidden");
+
+  const itemHtml = (it) => {
+    const logoHtml = it.chan.logo
+      ? `<img src="${it.chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;ut-fallback&quot;>${it.chan.name.slice(0, 2).toUpperCase()}</div>'">`
+      : `<div class="ut-fallback">${it.chan.name.slice(0, 2).toUpperCase()}</div>`;
+    return `<div class="updates-ticker-item" data-chan="${it.chan.id}">${logoHtml}<span class="ut-text">${it.event} <span>· ${it.chan.name}</span></span></div>`;
+  };
+
+  // Duplicate the sequence once so the marquee can loop seamlessly (CSS
+  // animates to exactly -50%, i.e. the end of the first copy).
+  track.innerHTML = items.map(itemHtml).join("") + items.map(itemHtml).join("");
+
+  track.querySelectorAll(".updates-ticker-item").forEach((el, i) => {
+    const chan = items[i % items.length].chan;
+    el.addEventListener("click", () => openPlayer(chan));
+  });
 }
 
 // ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events) ----------
@@ -2340,6 +2388,7 @@ async function init() {
         applyFilters();
         renderResumeRow();
         renderLiveEventsRow();
+        renderUpdatesTicker();
         setSplashProgress(100, "");
         setTimeout(hideSplash, 120);
         paintedFromCache = true;
@@ -2361,6 +2410,7 @@ async function init() {
     applyFilters();
     renderResumeRow();
     renderLiveEventsRow();
+    renderUpdatesTicker();
 
     // Classify every channel in the background so only the live ones stay
     // listed, and keep re-checking so anything that comes back online returns.
