@@ -14,7 +14,6 @@ const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/h
 const M3U_URL_TEST1 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/30-09-26-Link-1%20(1).m3u";
 const M3U_URL_TEST2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26_Link-2%20(1).m3u";
 const M3U_URL_TEST3 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26-Link-1%20(2).m3u";
-const M3U_URL_TEST4 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26-Link-1%20(2).m3u";
 const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
 const M3U_URL_TEST5 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/04-10-26_Link-2%20(1).m3u";
 
@@ -32,11 +31,11 @@ const M3U_SOURCES = [
   { url: M3U_URL_DEVM3U, type: "m3u", source: "DEV M3U" },
   { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
-  { url: M3U_URL_M3U_WORLD, type: "m3u", source: "M3U World" },
   { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "Toffee" },
   { url: M3U_URL_SKYTOP, type: "m3u", source: "SkyTop" },
   { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
+  { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
@@ -44,7 +43,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_TEST1 , type: "m3u", source: "TEST1" },
   { url: M3U_URL_TEST2 , type: "m3u", source: "TEST2" },
   { url: M3U_URL_TEST3 , type: "m3u", source: "TEST3" },
-  { url: M3U_URL_TEST4 , type: "m3u", source: "TEST4" },
   { url: M3U_URL_TEST5 , type: "m3u", source: "TEST5" },
   { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
 
@@ -59,6 +57,7 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "WILLOW", 
   "BINGE_STREAM",
   "CRICHD",
+  "SONY_LIV",
 ]);
 // Wraps a real stream URL through the site's own proxy (adds CORS headers and
 // spoofs Referer/Origin — what Referer-protected CDNs like FanCode need).
