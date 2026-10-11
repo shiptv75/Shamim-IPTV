@@ -2,7 +2,7 @@
 // SHAMIM IPTV — app.js
 // ============================================================
 
-const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
+const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
 const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
@@ -17,7 +17,7 @@ const M3U_URL_SONYLIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/h
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
 
 const M3U_SOURCES = [
-  { url: M3U_URL_DEVM3U, type: "m3u", source: "DEV M3U" },
+  { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
@@ -37,16 +37,33 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "FanCode",
   "FanCode-BD",
 ]);
-// Wraps a real stream URL through the site's own Cloudflare proxy (spoofs
-// Referer/Origin — useful for Referer-protected CDNs). NOT currently used
-// anywhere: routing every stream through it broke far more channels
-// (FanCode etc.) than the handful it was meant to fix, so playback is back
-// to direct-only. Kept here in case a narrow, per-channel use makes sense
-// later, once the proxy's own reliability at scale is understood.
+// Wraps a real stream URL through the site's own proxy (adds CORS headers and
+// spoofs Referer/Origin — what Referer-protected CDNs like FanCode need).
+// Used ONLY for URLs from PROXY_SOURCES (see playbackUrl below): routing every
+// stream through it earlier broke far more channels than it fixed.
 const STREAM_PROXY_BASE = "https://shamimiptv.pages.dev/api/proxy?url=";
 function proxyWrapStream(url) {
   if (!url) return url;
   return STREAM_PROXY_BASE + encodeURIComponent(url);
+}
+
+// Per-SOURCE proxying (not blanket). Streams from these sources are played
+// through the proxy because their CDN rejects direct browser requests
+// (FanCode's signed fancode.com links have no CORS headers and check
+// Referer) — this is exactly what the old playlist=fancode proxy route used
+// to do for them before the proxy was removed. Override from admin-config.json
+// with "proxySources": [...] ; use [] to turn it off completely.
+let PROXY_SOURCES = new Set(["FanCode", "FanCode-BD"]);
+const PROXIED_URLS = new Set(); // raw stream URLs that came from a PROXY_SOURCES playlist
+
+function playbackUrl(url) {
+  return PROXIED_URLS.has(url) ? proxyWrapStream(url) : url;
+}
+function realUrl(url) {
+  if (url && url.startsWith(STREAM_PROXY_BASE)) {
+    try { return decodeURIComponent(url.slice(STREAM_PROXY_BASE.length)); } catch {}
+  }
+  return url;
 }
 
 const CORS_PROXIES = [
@@ -213,6 +230,7 @@ function hasUsableLogo(url) {
 }
 
 function mergeAllChannels(sourceResults) {
+  PROXIED_URLS.clear();
   const merged = new Map();
   const order = [];
 
@@ -244,7 +262,10 @@ function mergeAllChannels(sourceResults) {
       // Prefer any USABLE thumbnail over a missing/placeholder one — checked
       // across every contributing source, not just the first one seen.
       if (!hasUsableLogo(chan.logo) && hasUsableLogo(entry.logo)) chan.logo = entry.logo;
-      entry.sources.forEach((s) => { if (!chan.sources.includes(s)) chan.sources.push(s); });
+      entry.sources.forEach((s) => {
+        if (!chan.sources.includes(s)) chan.sources.push(s);
+        if (PROXY_SOURCES.has(source)) PROXIED_URLS.add(s);
+      });
       chan.sourceTags.add(source);
       chan._allSources.add(source);
       if (entry.isNew) chan.isNew = true;
@@ -460,6 +481,10 @@ function applyAdminConfigData(data) {
   // Each entry links an event label to an existing channel by name — the
   // ticker shows that channel's logo and opens it on click.
   ADMIN_UPDATES = Array.isArray(data.updates) ? data.updates : [];
+
+  // Optional: which playlist SOURCES must be played through the proxy, e.g.
+  // "proxySources": ["FanCode", "FanCode-BD"]   (empty list = none)
+  if (Array.isArray(data.proxySources)) PROXY_SOURCES = new Set(data.proxySources);
 }
 
 function getFreshCachedAdminConfig() {
@@ -668,7 +693,7 @@ async function probeViaTsSniff(url) {
 // Probes a single stream URL the same way the player itself would load it.
 async function probeOneUrlDirect(url) {
   try {
-    if (/\.m3u8(\?|$)/i.test(url)) {
+    if (/\.m3u8(\?|$)/i.test(realUrl(url))) {
       const hlsTimeout = looksTokenGated(url) ? LIVE_CHECK_TIMEOUT + 3000 : LIVE_CHECK_TIMEOUT;
       const hlsResult = await withTimeout(probeViaHls(url), hlsTimeout);
       return hlsResult === null ? await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT) : hlsResult;
@@ -683,7 +708,8 @@ async function probeOneUrlDirect(url) {
 }
 
 async function probeOneUrl(url) {
-  return probeOneUrlDirect(url);
+  // probe exactly what playback will request (proxied for PROXY_SOURCES)
+  return probeOneUrlDirect(playbackUrl(url));
 }
 
 // Tries every merged source URL, all at once rather than one after another.
@@ -1329,6 +1355,8 @@ function startResumeAutoScroll(row) {
 }
 
 // ---------- Updates ticker (inline in the Live Events header) ----------
+let _tickerResizeBound = false;
+
 function renderUpdatesTicker() {
   const ticker = $("#updatesTicker");
   const track = $("#updatesTickerTrack");
@@ -1351,20 +1379,37 @@ function renderUpdatesTicker() {
   ticker.classList.remove("hidden");
 
   const itemHtml = (it) => {
+    const initials = it.chan.name.slice(0, 2).toUpperCase();
     const logoHtml = it.chan.logo
-      ? `<img src="${it.chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;ut-fallback&quot;>${it.chan.name.slice(0, 2).toUpperCase()}</div>'">`
-      : `<div class="ut-fallback">${it.chan.name.slice(0, 2).toUpperCase()}</div>`;
+      ? `<img src="${it.chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;ut-fallback&quot;>${initials}</div>'">`
+      : `<div class="ut-fallback">${initials}</div>`;
     return `<div class="updates-ticker-item" data-chan="${it.chan.id}">${logoHtml}<span class="ut-text">${it.event} <span>· ${it.chan.name}</span></span></div>`;
   };
 
-  // Duplicate the sequence once so the marquee can loop seamlessly (CSS
-  // animates to exactly -50%, i.e. the end of the first copy).
-  track.innerHTML = items.map(itemHtml).join("") + items.map(itemHtml).join("");
+  // Measure one set, then repeat it until a single half is at least as wide
+  // as the strip (otherwise a short list would leave an empty gap while it
+  // scrolls). The track holds two identical halves and CSS animates it by
+  // exactly -50%, so the loop is seamless.
+  const setHtml = items.map(itemHtml).join("");
+  track.style.animation = "none";
+  track.innerHTML = setHtml;
+  const setWidth = track.offsetWidth || 400; // 0 if not laid out yet — fall back to a sane guess
+  const repeats = Math.min(40, Math.max(1, Math.ceil((ticker.clientWidth || 600) / setWidth)));
+  const half = setHtml.repeat(repeats);
+  track.innerHTML = half + half;
+  track.style.animation = "";
+  track.style.animationDuration = `${Math.max(12, (setWidth * repeats) / 45)}s`; // ~45px/s
 
   track.querySelectorAll(".updates-ticker-item").forEach((el, i) => {
     const chan = items[i % items.length].chan;
     el.addEventListener("click", () => openPlayer(chan));
   });
+
+  if (!_tickerResizeBound) {
+    _tickerResizeBound = true;
+    let t = null;
+    window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(renderUpdatesTicker, 250); });
+  }
 }
 
 // ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events) ----------
@@ -1556,7 +1601,7 @@ function splitLoadServer(index) {
   }
 
   splitServerIndex = index;
-  const url = chan.sources[index];
+  const url = playbackUrl(chan.sources[index]);
   const video = $("#splitVideoNode");
   const loader = $("#splitLoader");
   if (!video) return;
@@ -1647,7 +1692,7 @@ function playChannel(ch) {
 // ── server list is the channel's own merged sources[], each routed through
 // our own proxy so protected CDNs (Referer/Origin-checked) still work ──
 function cvBuildServerListFromChannel(ch) {
-  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url }));
+  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url: playbackUrl(url) }));
   currentServerIndex = 0;
   renderServerMenu();
 }
