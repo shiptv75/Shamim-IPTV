@@ -13,7 +13,7 @@ const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
 const M3U_URL_TEST1 = "";
 const M3U_URL_TEST2 = "";
-const M3U_URL_TEST3 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26-Link-1%20(2).m3u";
+const M3U_URL_TEST3 = "";
 const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
 const M3U_URL_TEST5 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/04-10-26_Link-2%20(1).m3u";
 
