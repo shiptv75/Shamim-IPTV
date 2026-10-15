@@ -15,7 +15,7 @@ const M3U_URL_TEST1 = "";
 const M3U_URL_TEST2 = "";
 const M3U_URL_TEST3 = "";
 const M3U_URL_JAGOBD = "";
-const M3U_URL_TEST5 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/04-10-26_Link-2%20(1).m3u";
+const M3U_URL_TEST5 = "";
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
@@ -23,7 +23,7 @@ const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/
 const M3U_URL_CRICHD = "https://raw.githubusercontent.com/srhady/CricketLive/refs/heads/main/playlist.m3u";
 const M3U_URL_WILLOW = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
-const M3U_URL_BINGE_STREAM = "https://raw.githubusercontent.com/srhady/bingstream/main/playlist.json";
+const M3U_URL_BINGE_STREAM = "";
 
 const M3U_SOURCES = [
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
