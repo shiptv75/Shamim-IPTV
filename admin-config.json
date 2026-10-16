@@ -62,7 +62,7 @@
     {
       "key": "bangla",
       "label": "Bangla",
-      "match": "bangladesh|bangladeshi"
+      "match": "bangla|bangladeshi"
     },
     {
       "key": "news",
