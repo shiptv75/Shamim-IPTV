@@ -97,7 +97,7 @@
     {
       "key": "indian_bangla",
       "label": "Indian Bangla",
-      "match": "indian.?bangla|kolkata"
+      "match": "indian_bangla|kolkata"
     },
     {
       "key": "religious",
@@ -169,10 +169,12 @@
     "Ananda TV": "Ananda",
     "Deepto": "Deepto TV",
     "Ekattor TV": "Ekattor TV",
-    "Ekhon": "Ekhon tv"
+    "Ekhon": "Ekhon tv",
+   "Willow Sports" : "Willow , Willow HD"
+
   },
   "updates": [
-  { "event": "WCL - Season 3", "channel": "Willow sports" },
+  { "event": "WCL - Season 3", "channel": "Willow Sports" },
   { "event": "El Clasico Live", "channel": "beIN Sports 1" }
 ]
 }
