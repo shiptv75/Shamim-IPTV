@@ -11,11 +11,7 @@ const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/he
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
-const M3U_URL_TEST1 = "";
-const M3U_URL_TEST2 = "";
-const M3U_URL_TEST3 = "";
-const M3U_URL_JAGOBD = "";
-const M3U_URL_TEST5 = "";
+
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
@@ -23,7 +19,6 @@ const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/
 const M3U_URL_CRICHD = "https://raw.githubusercontent.com/srhady/CricketLive/refs/heads/main/playlist.m3u";
 const M3U_URL_WILLOW = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
-const M3U_URL_BINGE_STREAM = "";
 
 const M3U_SOURCES = [
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
@@ -39,12 +34,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
-  { url: M3U_URL_BINGE_STREAM , type: "m3u", source: "BINGE_STREAM" },
-  { url: M3U_URL_TEST1 , type: "m3u", source: "TEST1" },
-  { url: M3U_URL_TEST2 , type: "m3u", source: "TEST2" },
-  { url: M3U_URL_TEST3 , type: "m3u", source: "TEST3" },
-  { url: M3U_URL_TEST5 , type: "m3u", source: "TEST5" },
-  { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
+  
 
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
@@ -57,7 +47,6 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "WILLOW", 
   "BINGE_STREAM",
   "CRICHD",
-  "SONY_LIV",
 ]);
 // Wraps a real stream URL through the site's own proxy (adds CORS headers and
 // spoofs Referer/Origin — what Referer-protected CDNs like FanCode need).
@@ -120,6 +109,12 @@ let cvIsSeeking = false;
 let cvControlsTimer = null;
 let cvStallTimer = null;
 let cvVideoCheckTimer = null;
+
+// The user's OWN volume/mute choice. Only the mute button, the volume slider
+// and the keyboard shortcuts may change these — never the autoplay fallback —
+// so a channel switch always restores what the user actually chose.
+let cvUserVolume = 1;
+let cvUserMuted = false;
 
 // ---- Split-view (second channel) player state — a deliberately simpler,
 // self-contained engine: no quality selector, no server-switch menu, no
@@ -1789,13 +1784,38 @@ function destroyExistingPlayers() {
   if (video) { video.removeAttribute("src"); video.load(); }
 }
 
+// Starts playback without letting a FAILED play() change the user's mute setting.
+// Why this exists: when channels are switched quickly, the previous load's
+// pending play() promise is rejected with AbortError. The old code answered ANY
+// rejection with `video.muted = true` (meant only for the browser's autoplay
+// block), so a couple of quick switches silently muted the player — and the
+// next load then read that muted state back as if the user had chosen it.
+function cvSafePlay(video) {
+  const urlAtCall = currentStreamUrl;
+  const p = video.play();
+  if (!p || typeof p.catch !== "function") return;
+  p.catch((err) => {
+    if (currentStreamUrl !== urlAtCall) return; // a newer channel already took over
+    if (err && err.name === "AbortError") {
+      // interrupted by our own reload — just try once more, volume untouched
+      setTimeout(() => { if (currentStreamUrl === urlAtCall && video.paused) video.play().catch(() => {}); }, 300);
+      return;
+    }
+    if (err && err.name === "NotAllowedError") {
+      // real autoplay block: show the picture muted, but only TEMPORARILY —
+      // cvUserMuted stays as the user set it, so the next channel restores it
+      video.muted = true;
+      cvUpdateVolIcon(video.volume, true);
+      const slider = $("#cv-vol-slider"); if (slider) slider.value = 0;
+      video.play().catch(() => {});
+    }
+  });
+}
+
 // ── reusable stream loader (channel switch & server switch both use this) ──
 function cvLoadStreamSource(rawUrl) {
   const video = $("#main-hybrid-video-node");
   if (!rawUrl || !video) return;
-
-  const savedVolume = video.volume || 1;
-  const savedMuted = video.muted || false;
 
   currentStreamUrl = rawUrl;
   destroyExistingPlayers();
@@ -1824,18 +1844,18 @@ function cvLoadStreamSource(rawUrl) {
   cvVideoCheckTimer = setTimeout(() => cvHandleNoVideo(url), 12000);
 
   function restoreVolume() {
-    video.volume = savedVolume;
-    video.muted = savedMuted;
+    video.volume = cvUserVolume;
+    video.muted = cvUserMuted;
     const slider = $("#cv-vol-slider");
-    if (slider) slider.value = savedMuted ? 0 : savedVolume;
-    cvUpdateVolIcon(savedVolume, savedMuted);
+    if (slider) slider.value = cvUserMuted ? 0 : cvUserVolume;
+    cvUpdateVolIcon(cvUserVolume, cvUserMuted);
   }
 
   function tryNative() {
     destroyExistingPlayers();
     video.src = url;
     restoreVolume();
-    video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+    cvSafePlay(video);
   }
 
   function tryMpegts(onFail) {
@@ -1848,7 +1868,7 @@ function cvLoadStreamSource(rawUrl) {
     activeMpegtsInstance.load();
     activeMpegtsInstance.on(mpegts.Events.ERROR, () => { cvShowLoader(false); if (onFail) onFail(); else tryNative(); });
     restoreVolume();
-    video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+    cvSafePlay(video);
   }
 
   if (cvCurrentEngine === "mpegts") { tryMpegts(tryNative); return; }
@@ -1868,7 +1888,7 @@ function cvLoadStreamSource(rawUrl) {
 
     activeHlsEngineInstance.on(Hls.Events.MANIFEST_PARSED, (evt, data) => {
       restoreVolume();
-      video.play().catch(() => { video.muted = true; video.play().catch(() => {}); });
+      cvSafePlay(video);
       const levels = data.levels;
       if (levels && levels.length > 1 && qsel) {
         qsel.innerHTML = `<option value="-1">Auto</option>`;
@@ -1911,7 +1931,7 @@ function cvLoadStreamSource(rawUrl) {
   } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
     video.src = url;
     restoreVolume();
-    video.addEventListener("loadedmetadata", () => video.play().catch(() => { video.muted = true; video.play().catch(() => {}); }), { once: true });
+    video.addEventListener("loadedmetadata", () => cvSafePlay(video), { once: true });
   } else {
     tryNative();
   }
@@ -1997,6 +2017,7 @@ function cvToggleMute() {
   const slider = $("#cv-vol-slider");
   if (!v) return;
   v.muted = !v.muted;
+  cvUserMuted = v.muted; // the user's own choice
   cvUpdateVolIcon(v.volume, v.muted);
   if (slider) slider.value = v.muted ? 0 : v.volume;
   cvShowToast(v.muted ? "🔇 Muted" : "🔊 Unmuted");
@@ -2007,6 +2028,8 @@ function cvSetVolume(val) {
   if (!v) return;
   v.volume = parseFloat(val);
   v.muted = parseFloat(val) === 0;
+  cvUserMuted = v.muted;
+  if (parseFloat(val) > 0) cvUserVolume = parseFloat(val);
   cvUpdateVolIcon(parseFloat(val), v.muted);
 }
 
@@ -2361,6 +2384,7 @@ document.addEventListener("keydown", (e) => {
     case "ArrowUp": {
       e.preventDefault();
       v.volume = Math.min(1, v.volume + 0.1);
+      if (v.volume > 0) cvUserVolume = v.volume;
       const s = $("#cv-vol-slider"); if (s) s.value = v.volume;
       cvShowToast("🔊 " + Math.round(v.volume * 100) + "%");
       break;
@@ -2368,6 +2392,7 @@ document.addEventListener("keydown", (e) => {
     case "ArrowDown": {
       e.preventDefault();
       v.volume = Math.max(0, v.volume - 0.1);
+      if (v.volume > 0) cvUserVolume = v.volume;
       const s2 = $("#cv-vol-slider"); if (s2) s2.value = v.volume;
       cvShowToast("🔉 " + Math.round(v.volume * 100) + "%");
       break;
