@@ -79,7 +79,7 @@
     {
       "key": "lifestyle",
       "label": "Lifestyle",
-      "match": "document|lifestyle"
+      "match": "documentary|lifestyle"
     },
     {
       "key": "indian_bangla",
@@ -113,8 +113,8 @@
     "Ekattor HD": "news",
     "DBC News": "news",
     "Channel 24": "news",
-    "Ekhon": "news",
-    "JALSHA MOVIES": "movies",
+    "Ekhon tv": "news",
+    "JALSHA MOVIES": "indian_bangla",
     "Mohona Tv": "bangla",
     "Sony Max HD": "movies",
     "Sony Television": "entertainment",
@@ -126,7 +126,6 @@
     "GTV": "bangla",
     "Ekushey TV": "bangla",
     "Deshi TV HD": "bangla",
-    "Ekhon tv": "news",
     "Deshe Bideshe": "bangla"
   },
   "channelLogos": {
@@ -134,9 +133,9 @@
     "Maasranga": "https://en.wikipedia.org/wiki/Special:FilePath/Maasranga_Television_Logo.jpg",
     "Desh TV": "https://commons.wikimedia.org/wiki/Special:FilePath/Desh_TV_logo_(2009-2022).svg",
     "T Sports": "https://commons.wikimedia.org/wiki/Special:FilePath/T_Sports_logo.svg",
-    "Enter 10 Bangla": "REPLACE_ME_could_not_find_a_reliable_public_logo",
+    "Enter 10 Bangla": "",
     "Channel 1": "https://en.wikipedia.org/wiki/Special:FilePath/Channel_1_Bangladesh_Logo.svg",
-    "Star News": "REPLACE_ME_channel_launched_2026_no_public_logo_file_yet",
+    "Star News": "",
     "News 24": "https://i.ibb.co.com/CpntX4Xr/News24-logo-freekaj.png",
     "DBC News": "https://i.imgur.com/WmLw772.png",
     "Zee Cinema": "https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/india/zee-cinema-in.png",
@@ -155,16 +154,14 @@
     "SONY ENTERTAINMENT TELEVISION": "Sony Television",
     "Ananda TV": "Ananda",
     "Deepto": "Deepto TV",
-    "Ekattor TV": "Ekattor TV",
     "Ekhon": "Ekhon tv",
-   "Willow HD" : "Willow Sports",
-    "Willow" : "Willow Sports",
-    "A Sports HD" : "A Sports",
+    "Willow HD": "Willow Sports",
+    "Willow": "Willow Sports",
+    "A Sports HD": "A Sports",
     "T Sports 3": "T Sports"
-
   },
   "updates": [
-  { "event": "WCL - Season 3", "channel": "Willow Sports" },
-  { "event": "Bangladesh Tri Series", "channel": "T Sports" }
-]
+    { "event": "WCL - Season 3", "channel": "Willow Sports" },
+    { "event": "Bangladesh Tri Series", "channel": "T Sports" }
+  ]
 }
