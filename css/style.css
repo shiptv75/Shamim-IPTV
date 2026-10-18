@@ -487,8 +487,10 @@ a{ color: inherit; text-decoration: none; }
   display:flex; align-items:center; justify-content:center;
   font-family: var(--font-display); font-weight:700; font-size:9px; color: var(--sig);
 }
-.updates-ticker-item .ut-text{ font-size:12.5px; font-weight:700; color: var(--gold); }
-.updates-ticker-item .ut-text span{ color: var(--muted); font-weight:500; }
+.updates-ticker-item .ut-event{ font-size:12.5px; font-weight:700; color: var(--gold); }
+.updates-ticker-item .ut-dot{ color: var(--muted); font-weight:700; }
+.updates-ticker-item .ut-chan{ display:flex; align-items:center; gap:7px; }
+.updates-ticker-item .ut-chan-name{ font-size:12.5px; font-weight:600; color: var(--text); opacity:.85; }
 
 /* cards area under the header */
 .live-events-body{
