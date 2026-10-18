@@ -11,12 +11,8 @@ const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/he
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
-const M3U_URL_TEST1 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/30-09-26-Link-1%20(1).m3u";
-const M3U_URL_TEST2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26_Link-2%20(1).m3u";
-const M3U_URL_TEST3 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26-Link-1%20(2).m3u";
-const M3U_URL_TEST4 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/08-10-26-Link-1%20(2).m3u";
 const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
-const M3U_URL_TEST5 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/04-10-26_Link-2%20(1).m3u";
+
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
@@ -24,7 +20,7 @@ const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/
 const M3U_URL_CRICHD = "https://raw.githubusercontent.com/srhady/CricketLive/refs/heads/main/playlist.m3u";
 const M3U_URL_WILLOW = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
-const M3U_URL_BINGE_STREAM = "https://raw.githubusercontent.com/srhady/bingstream/main/playlist.json";
+
 
 const M3U_SOURCES = [
   { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
@@ -41,11 +37,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
   { url: M3U_URL_BINGE_STREAM , type: "m3u", source: "BINGE_STREAM" },
-  { url: M3U_URL_TEST1 , type: "m3u", source: "TEST1" },
-  { url: M3U_URL_TEST2 , type: "m3u", source: "TEST2" },
-  { url: M3U_URL_TEST3 , type: "m3u", source: "TEST3" },
-  { url: M3U_URL_TEST4 , type: "m3u", source: "TEST4" },
-  { url: M3U_URL_TEST5 , type: "m3u", source: "TEST5" },
   { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
 
 ];
