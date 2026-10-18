@@ -157,11 +157,11 @@
     "Ekhon": "Ekhon tv",
     "Willow HD": "Willow Sports",
     "Willow": "Willow Sports",
-    "A Sports HD": "A Sports",
-    "T Sports 3": "T Sports"
+    "A Sports HD": "A Sports"
+  
   },
   "updates": [
     { "event": "WCL - Season 3", "channel": "Willow Sports" },
-    { "event": "Bangladesh Tri Series", "channel": "T Sports" }
+    { "event": "Bangladesh Tri Series", "channel": "T Sports 3" }
   ]
 }
