@@ -21,8 +21,6 @@
     "TNT 2",
     "TNT 3",
     "TNT 4",
-    "ATV Sport",
-    "Sports First TV",
     "I ON TV UK",
     "Oman TV",
     "Oman TV Cultural",
@@ -31,24 +29,13 @@
     "Time Televison | USA",
     "NBC Sports",
     "Goal TV",
-    "Xtrem Sports",
     "WOF 1",
     "Start Sports Hindi",
     "Depot",
     "MadaniTV",
     "PeaceTV",
     "DBC",
-    "NTV HD",
     "TV ONE",
-    "Win Sports",
-    "beIN Sports",
-    "D Sports",
-    "TUDN",
-    "Bein Sports 1",
-    "Bein Sports 2",
-    "Bein Sports 3",
-    "Bein Sports 4",
-    "Bein Sports 5",
     "Laliga HD",
     "Fancode 1",
     "Fancode 2"
@@ -172,11 +159,12 @@
     "Ekhon": "Ekhon tv",
    "Willow HD" : "Willow Sports",
     "Willow" : "Willow Sports",
-    "A Sports HD" : "A Sports"
+    "A Sports HD" : "A Sports",
+    "T Sports 3": "T Sports",
 
   },
   "updates": [
   { "event": "WCL - Season 3", "channel": "Willow Sports" },
-  { "event": "Bangladesh Tri Series", "channel": "A Sports" }
+  { "event": "Bangladesh Tri Series", "channel": "T Sports" }
 ]
 }
