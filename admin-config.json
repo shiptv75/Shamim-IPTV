@@ -158,6 +158,7 @@
   },
   "updates": [
     { "event": "WCL - Season 3", "channel": "Willow Sports" },
-    { "event": "Bangladesh Tri Series", "channel": "T Sports" }
+    { "event": "Bangladesh Tri Series", "channel": "T Sports" },
+    { "event": "Serie A", "channel": "ESPN" }
   ]
 }
