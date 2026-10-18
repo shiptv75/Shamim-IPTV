@@ -36,7 +36,6 @@ const M3U_SOURCES = [
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
-  { url: M3U_URL_BINGE_STREAM , type: "m3u", source: "BINGE_STREAM" },
   { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
 
 ];
