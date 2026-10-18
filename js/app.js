@@ -11,7 +11,7 @@ const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/he
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
-const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
+const M3U_URL_FASTIPTV2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/1610261.m3u";
 
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
@@ -36,7 +36,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
-  { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
+  { url: M3U_URL_FASTIPTV2 , type: "m3u", source: "FASTIPTV2" },
 
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
