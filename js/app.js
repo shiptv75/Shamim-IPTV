@@ -1,8 +1,6 @@
 // ============================================================
 // SHAMIM IPTV — app.js
 // ============================================================
-
-const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_Z = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_SPORTS = "https://raw.githubusercontent.com/shiptv75/Ssports/refs/heads/main/playlist.m3u";
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
@@ -15,6 +13,7 @@ const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/re
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
 const M3U_URL_FASTIPTV2 = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/LiveTV.m3u";
+const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
@@ -26,7 +25,6 @@ const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/
 
 
 const M3U_SOURCES = [
-  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_Z, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_SPORTS, type: "m3u", source: "Sports" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
@@ -41,6 +39,8 @@ const M3U_SOURCES = [
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
   { url: M3U_URL_FASTIPTV2 , type: "m3u", source: "FASTIPTV2" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" }
+  
 
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
