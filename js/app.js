@@ -13,7 +13,6 @@ const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/re
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
 const M3U_URL_FASTIPTV2 = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/LiveTV.m3u";
-const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
