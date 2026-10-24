@@ -1,7 +1,7 @@
 // ============================================================
 // SHAMIM IPTV — app.js
 // ============================================================
-const M3U_URL_Z = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
+const M3U_URL_Z = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/playlist_two.m3u";
 const M3U_URL_SPORTS = "https://raw.githubusercontent.com/shiptv75/Ssports/refs/heads/main/playlist.m3u";
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
