@@ -6,7 +6,7 @@ const M3U_URL_SPORTS = "https://raw.githubusercontent.com/shiptv75/Ssports/refs/
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
-const M3U_URL_2 = "https://liljnnprtqwoimmsjuhy.supabase.co/storage/v1/object/public/IPTV-Network/Skym3u.dev/23-10-26-Link-2_14.m3u";
+const M3U_URL_2 = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/Gift%20Special_5.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
