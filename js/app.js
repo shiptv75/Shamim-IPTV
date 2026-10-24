@@ -1,18 +1,17 @@
 // ============================================================
 // SHAMIM IPTV — app.js
 // ============================================================
-const M3U_URL_Z = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/playlist_two.m3u";
-const M3U_URL_SPORTS = "https://raw.githubusercontent.com/shiptv75/Ssports/refs/heads/main/playlist.m3u";
+
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
 const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
-const M3U_URL_2 = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/23-10-26-Link-2_14.m3u";
+const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
 const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
 const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
 const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
-const M3U_URL_FASTIPTV2 = "https://raw.githubusercontent.com/shiptv75/SHIP/refs/heads/main/LiveTV.m3u";
+const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
 
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
@@ -24,12 +23,12 @@ const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/
 
 
 const M3U_SOURCES = [
-  { url: M3U_URL_Z, type: "m3u", source: "Z Playlist" },
-  { url: M3U_URL_SPORTS, type: "m3u", source: "Sports" },
+  { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_DEVM3U, type: "m3u", source: "DEV M3U" },
   { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
   { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
   { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "Toffee" },
   { url: M3U_URL_SKYTOP, type: "m3u", source: "SkyTop" },
   { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
@@ -37,9 +36,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
-  { url: M3U_URL_FASTIPTV2 , type: "m3u", source: "FASTIPTV2" },
-  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" }
-  
+  { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
 
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
@@ -1104,7 +1101,7 @@ function renderServerFilterMenu() {
   if (!wrap) return;
   const counts = sourceCounts();
 
-  const items = [{ key: "all", label: "🌐 সব সোর্স" }, ...SOURCE_NAMES.map((s) => ({ key: s, label: `🖥️ ${s}` }))];
+  const items = [{ key: "all", label: "🌐 সব সোর্স" }, ...allSourceNames().map((s) => ({ key: s, label: `🖥️ ${s}` }))];
   wrap.innerHTML = items
     .map(
       (it) =>
@@ -1526,7 +1523,7 @@ function saveResume(chan) {
 function setupHomeButton() {
   const btn = $("#homeBtn");
   if (!btn) return;
-  btn.addEventListener("click", () => setChip("all"));
+  btn.addEventListener("click", () => { closeToolsPage(); setChip("all"); });
 }
 
 function setupSearch() {
@@ -2454,6 +2451,7 @@ function setupPlayerControls() {
 
 // ---------- INIT ----------
 async function init() {
+  try { setupToolsPage(); } catch (e) { console.error("Tools page failed to start:", e); } // never let Tools block the main site
   setupHomeButton();
   setupSearch();
   setupHelpDrawer();
@@ -2479,7 +2477,7 @@ async function init() {
       const cachedAdminConfig = getFreshCachedAdminConfig();
       if (cachedAdminConfig) applyAdminConfigData(cachedAdminConfig);
 
-      CHANNELS = mergeAllChannels(cachedPlaylists).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
+      CHANNELS = mergeAllChannels(withCustomSource(cachedPlaylists)).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
       if (CHANNELS.length) {
         buildGroups();
         renderServerFilterMenu();
@@ -2500,7 +2498,7 @@ async function init() {
   try {
     const [results] = await Promise.all([fetchPlaylist(), fetchAdminConfig()]);
     setSplashProgress(65, "চ্যানেল সাজানো হচ্ছে…");
-    CHANNELS = mergeAllChannels(results).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
+    CHANNELS = mergeAllChannels(withCustomSource(results)).filter((c) => !ADMIN_HIDDEN_SLUGS.includes(slugify(c.name)));
     if (!CHANNELS.length) throw new Error("empty");
 
     buildGroups();
@@ -2527,5 +2525,534 @@ async function init() {
     // refresh shouldn't force a reload loop on top of a working page.
   }
 }
+
+// =====================================================================
+// TOOLS — My Saved Playlists + M3U Checker
+// Ported from the old Blogger site's Tools tab. Everything here is
+// self-contained: setupToolsPage() is called inside try/catch from init(),
+// so an error in this block can never stop the main site from loading.
+// =====================================================================
+const LS_SAVED_PLAYLISTS = "iptv_saved_playlists";
+const LS_CUSTOM_CHANNELS = "shamim_custom_channels_v1";
+const CHECK_TIMEOUT_MS = 10000;   // per-channel verdict deadline (same as the old tool)
+const CHECK_CONCURRENCY = 6;      // channels tested at the same time
+
+let checkerChannels = [];         // [{ id, name, url, logo, group, status, selected }]
+let checkerFilter = "all";        // all | working | blocked | dead
+let checkerRun = 0;               // bumped on every new load/clear so stale async results are ignored
+let checkerSeq = 0;               // unique row ids
+
+const escHtml = (v) =>
+  String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- Custom channels (saved from the checker, merged into the site) ----------
+function loadCustomChannels() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_CUSTOM_CHANNELS) || "[]");
+    return Array.isArray(v) ? v.filter((c) => c && c.name && c.url) : [];
+  } catch { return []; }
+}
+function hasCustomChannels() { return loadCustomChannels().length > 0; }
+function allSourceNames() { return hasCustomChannels() ? ["Custom", ...SOURCE_NAMES] : SOURCE_NAMES; }
+
+const m3uAttr = (v) => String(v == null ? "" : v).replace(/"/g, "'").replace(/[\r\n]+/g, " ").trim();
+const m3uText = (v) => String(v == null ? "" : v).replace(/[\r\n]+/g, " ").trim();
+
+// Builds playlist text with REAL newline characters. (The old Blogger tool wrote
+// the two characters "\" + "n" between #EXTINF and the URL, which produced
+// playlists — like skytop — with every entry jammed onto one line.)
+function channelsToM3U(list) {
+  const out = ["#EXTM3U"];
+  list.forEach((c) => {
+    out.push(`#EXTINF:-1 tvg-logo="${m3uAttr(c.logo)}" group-title="${m3uAttr(c.group)}",${m3uText(c.name)}`);
+    out.push(c.url);
+  });
+  return out.join("\n") + "\n";
+}
+
+// Saved Custom channels join the normal merge as one more source, listed
+// first so the URLs the user hand-picked as "working" become Server 1.
+function withCustomSource(results) {
+  const list = loadCustomChannels();
+  if (!list.length) return results;
+  return [{ source: "Custom", text: channelsToM3U(list) }, ...results];
+}
+
+// ---------- small helpers ----------
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy"); ta.remove();
+    return ok;
+  } catch { return false; }
+}
+
+// Reads a remote text file the same way the playlists are loaded: direct
+// first, CORS proxies in parallel as fallback.
+async function toolsFetchText(url) {
+  const tryProxy = async (wrap) => {
+    const res = await fetchWithTimeout(wrap(url), { cache: "no-store" }, 15000);
+    if (!res.ok) throw new Error("bad status " + res.status);
+    return res.text();
+  };
+  return Promise.any(CORS_PROXIES.map(tryProxy));
+}
+
+function nameFromUrl(u) {
+  try {
+    const x = new URL(u);
+    const last = x.pathname.split("/").filter(Boolean).pop() || x.hostname;
+    return decodeURIComponent(last).replace(/\.(m3u8?|ts|mp4)$/i, "") || u;
+  } catch { return u; }
+}
+const isHttpUrl = (u) => /^https?:\/\/\S+$/i.test(u);
+
+// M3U text -> [{ name, url, logo, group }]. Reuses the site's own parser, so
+// quirks it already handles (literal "\n" files, commas inside logo URLs…) work here too.
+function parseToCheckerChannels(text, defaultGroup) {
+  const out = [];
+  parseSingleSourceRaw(text).forEach((e) => {
+    (e.sources || []).forEach((url) => out.push({ name: e.name, url, logo: e.logo || "", group: e.group || defaultGroup || "" }));
+  });
+  return out;
+}
+function urlsToCheckerChannels(urls, group) {
+  return urls.map((url) => ({ name: nameFromUrl(url), url, logo: "", group }));
+}
+
+// ---------- page open / close ----------
+function openToolsPage() {
+  document.body.classList.add("tools-mode");
+  const b = $("#toolsBtn"); if (b) { b.classList.add("active"); b.setAttribute("aria-pressed", "true"); }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function closeToolsPage() {
+  if (!document.body.classList.contains("tools-mode")) return;
+  document.body.classList.remove("tools-mode");
+  const b = $("#toolsBtn"); if (b) { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); }
+  requestAnimationFrame(() => { try { syncPaneHeights(); } catch {} }); // player pane was hidden — re-measure
+}
+function toggleToolsPage() {
+  document.body.classList.contains("tools-mode") ? closeToolsPage() : openToolsPage();
+}
+
+// ---------- My Saved Playlists ----------
+function loadSavedPlaylists() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_SAVED_PLAYLISTS) || "[]");
+    return Array.isArray(v) ? v.filter((p) => p && p.url) : [];
+  } catch { return []; }
+}
+function saveSavedPlaylists(list) {
+  try { localStorage.setItem(LS_SAVED_PLAYLISTS, JSON.stringify(list)); return true; } catch { return false; }
+}
+function renderSavedPlaylists() {
+  const box = $("#plStoreList"); if (!box) return;
+  const list = loadSavedPlaylists();
+  if (!list.length) { box.innerHTML = `<div class="pl-store-empty">এখনো কোনো প্লেলিস্ট সেভ করা নেই</div>`; return; }
+  box.innerHTML = list.map((p, i) => `
+    <div class="pl-store-item" data-i="${i}">
+      <div class="pl-store-info">
+        <div class="pl-store-name">${escHtml(p.name || nameFromUrl(p.url))}</div>
+        <div class="pl-store-link" title="${escHtml(p.url)}">${escHtml(p.url)}</div>
+      </div>
+      <button class="pl-store-btn load" data-act="load" type="button"><i class="fa-solid fa-play"></i> Load</button>
+      <button class="pl-store-btn del" data-act="del" type="button"><i class="fa-solid fa-trash-can"></i></button>
+    </div>`).join("");
+}
+function addSavedPlaylist() {
+  const nameEl = $("#plStoreName"), urlEl = $("#plStoreUrl");
+  const url = (urlEl.value || "").trim();
+  const name = (nameEl.value || "").trim() || nameFromUrl(url);
+  if (!isHttpUrl(url)) return toast("সঠিক প্লেলিস্ট URL দিন (http/https)");
+  const list = loadSavedPlaylists();
+  const existing = list.find((p) => p.url === url);
+  if (existing) existing.name = name; else list.push({ name, url });
+  if (!saveSavedPlaylists(list)) return toast("সেভ করা যায়নি (স্টোরেজ ভর্তি?)");
+  nameEl.value = ""; urlEl.value = "";
+  renderSavedPlaylists();
+  toast(existing ? "প্লেলিস্ট আপডেট হয়েছে" : "প্লেলিস্ট সেভ হয়েছে");
+}
+
+// ---------- Checker: loading channels into the list ----------
+function setChkStatus(msg, kind) {
+  const el = $("#chkStatus"); if (!el) return;
+  el.textContent = msg || "";
+  el.style.color = kind === "ok" ? "#4ade80" : kind === "err" ? "#f87171" : "";
+}
+
+function setCheckerChannels(list, msg) {
+  checkerRun++;
+  checkerChannels = list.map((c) => ({ id: ++checkerSeq, name: c.name, url: c.url, logo: c.logo || "", group: c.group || "", status: "checking", selected: false }));
+  checkerFilter = "all";
+  renderCheckerResults();
+  if (msg) setChkStatus(msg, "ok");
+  startCheckerQueue();
+}
+
+function clearChecker() {
+  checkerRun++;            // stop anything still running
+  checkerChannels = [];
+  renderCheckerResults();
+  setChkStatus("");
+}
+
+async function loadPlaylistFromUrl(url, label) {
+  setChkStatus("⏳ লোড হচ্ছে…");
+  try {
+    const text = await toolsFetchText(url);
+    const list = parseToCheckerChannels(text, "");
+    if (!list.length) return setChkStatus("⚠ এই লিংকে কোনো চ্যানেল পাওয়া যায়নি", "err");
+    setCheckerChannels(list, `✓ ${list.length} channels loaded${label ? " — " + label : ""} — Checking status…`);
+  } catch {
+    setChkStatus("✗ লিংক লোড করা যায়নি (বন্ধ বা ব্লকড)", "err");
+  }
+}
+
+const looksLikeHlsManifest = (t) => /#EXT-X-(TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE|VERSION)/.test(t);
+const looksLikeDirectStream = (u) => isTsStream(u) || /\.(mp4|mkv|flv|aac|mp3)(\?|#|$)/i.test(u);
+
+function playDirectStream(url) {
+  const ch = { id: "chk_direct_" + Date.now(), name: nameFromUrl(url), logo: "", group: "Direct", sources: [url], sourceTags: new Set(["Checker"]), liveStatus: "on" };
+  closeToolsPage();
+  openPlayer(ch);
+}
+
+async function chkPlay() {
+  const url = ($("#chkSingleUrl").value || "").trim();
+  if (!isHttpUrl(url)) return setChkStatus("✗ সঠিক URL দিন", "err");
+  if (looksLikeDirectStream(url)) return playDirectStream(url);
+  setChkStatus("⏳ চেক করা হচ্ছে…");
+  let text = "";
+  try { text = await toolsFetchText(url); }
+  catch {
+    // can't read it (CORS etc.) — a .m3u8 link is most likely a stream, so just try to play it
+    if (/\.m3u8(\?|#|$)/i.test(url)) return playDirectStream(url);
+    return setChkStatus("✗ লিংক লোড করা যায়নি (বন্ধ বা ব্লকড)", "err");
+  }
+  if (looksLikeHlsManifest(text)) return playDirectStream(url);
+  const list = parseToCheckerChannels(text, "");
+  if (!list.length) return setChkStatus("⚠ এই লিংকে কোনো চ্যানেল পাওয়া যায়নি", "err");
+  setCheckerChannels(list, `✓ ${list.length} channels loaded — Checking status…`);
+}
+
+async function chkCheck() {
+  const url = ($("#chkSingleUrl").value || "").trim();
+  if (!isHttpUrl(url)) return setChkStatus("✗ সঠিক URL দিন", "err");
+  if (looksLikeDirectStream(url)) {
+    setChkStatus("⏳ স্ট্রিম টেস্ট হচ্ছে…");
+    return checkStreamStatus(url, (st) => setChkStatus(
+      st === "working" ? "✓ Working stream" : st === "blocked" ? "⛔ Blocked (403/451)" : "✗ Dead / unreachable",
+      st === "working" ? "ok" : "err"));
+  }
+  setChkStatus("⏳ চেক করা হচ্ছে…");
+  try {
+    const text = await toolsFetchText(url);
+    if (looksLikeHlsManifest(text)) return setChkStatus("✓ Valid HLS stream", "ok");
+    const n = (text.match(/#EXTINF/g) || []).length;
+    n ? setChkStatus(`✓ Valid M3U — ${n} channels found`, "ok") : setChkStatus("✗ Not a valid playlist", "err");
+  } catch { setChkStatus("✗ Invalid or unreachable URL", "err"); }
+}
+
+function handleCheckerFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const list = parseToCheckerChannels(String(reader.result || ""), "");
+    if (!list.length) return setChkStatus("⚠ ফাইলে কোনো চ্যানেল পাওয়া যায়নি", "err");
+    setCheckerChannels(list, `✓ ${list.length} channels loaded — ${file.name} — Checking status…`);
+  };
+  reader.onerror = () => setChkStatus("✗ ফাইল পড়া যায়নি", "err");
+  reader.readAsText(file);
+}
+
+async function chkBulkRun() {
+  const raw = ($("#chkBulk").value || "").trim();
+  if (!raw) return setChkStatus("⚠ আগে কিছু পেস্ট করুন", "err");
+
+  // 1) pasted M3U text
+  if (/#EXTM3U|#EXTINF/.test(raw)) {
+    const list = parseToCheckerChannels(raw, "");
+    if (list.length) return setCheckerChannels(list, `✓ ${list.length} channels loaded — Checking status…`);
+  }
+  // 2) pasted HTML -> pull out stream/playlist links
+  if (/<\/?[a-z][\s\S]*>/i.test(raw)) {
+    const found = [...new Set(raw.match(/https?:\/\/[^\s"'<>\\]+?\.(?:m3u8|m3u|ts)(?:\?[^\s"'<>\\]*)?/gi) || [])];
+    if (found.length) return setCheckerChannels(urlsToCheckerChannels(found, "HTML"), `✓ ${found.length} links found — Checking status…`);
+  }
+  // 3) one URL per line
+  const urls = [...new Set(raw.split(/\r?\n/).map((l) => l.trim()).filter(isHttpUrl))];
+  if (!urls.length) return setChkStatus("⚠ কোনো বৈধ M3U বা URL পাওয়া যায়নি", "err");
+  if (urls.length === 1 && !looksLikeDirectStream(urls[0])) return loadPlaylistFromUrl(urls[0], "");
+  setCheckerChannels(urlsToCheckerChannels(urls, "Bulk"), `✓ ${urls.length} URLs loaded — Checking status…`);
+}
+
+// ---------- Checker: the actual testing ----------
+// Verdicts (same rules as the old tool): working = real data/segment arrived;
+// blocked = HTTP 403/451; dead = anything else, including no answer in 10s.
+function checkStreamStatus(url, done) {
+  let finished = false, hls = null, mp = null, timer = null;
+  const video = document.createElement("video");
+  video.muted = true; video.playsInline = true; video.preload = "auto";
+  video.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9px;top:-9px;";
+  document.body.appendChild(video);
+
+  const finish = (status) => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    try { if (hls) { hls.stopLoad(); hls.destroy(); } } catch {}
+    try { if (mp) { mp.pause(); mp.unload(); mp.detachMediaElement(); mp.destroy(); } } catch {}
+    try { video.pause(); video.removeAttribute("src"); video.load(); video.remove(); } catch {}
+    done(status);
+  };
+  timer = setTimeout(() => finish("dead"), CHECK_TIMEOUT_MS);
+
+  try {
+    if (isTsStream(url) && typeof mpegts !== "undefined" && mpegts.isSupported()) {
+      mp = mpegts.createPlayer({ type: "mpegts", url, isLive: true, cors: true });
+      mp.attachMediaElement(video);
+      mp.on(mpegts.Events.ERROR, (type, detail, info) => finish(info && info.code === 403 ? "blocked" : "dead"));
+      mp.on(mpegts.Events.MEDIA_INFO, () => finish("working"));
+      mp.on(mpegts.Events.STATISTICS_INFO, (st) => { if (st && st.speed > 0) finish("working"); });
+      video.addEventListener("canplay", () => finish("working"));
+      mp.load();
+      return;
+    }
+    if (window.Hls && Hls.isSupported()) {
+      hls = new Hls({
+        manifestLoadingTimeOut: 8000, manifestLoadingMaxRetry: 0,
+        levelLoadingTimeOut: 8000, levelLoadingMaxRetry: 0,
+        fragLoadingTimeOut: 8000, fragLoadingMaxRetry: 0, debug: false,
+      });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      // a parsed manifest proves nothing (it can stay valid after a token expires) —
+      // only an actual media fragment counts as "working"
+      hls.on(Hls.Events.FRAG_LOADED, () => finish("working"));
+      video.addEventListener("canplay", () => finish("working"));
+      video.addEventListener("playing", () => finish("working"));
+      hls.on(Hls.Events.ERROR, (evt, data) => {
+        if (!data || !data.fatal) return;
+        const code = data.response && data.response.code;
+        finish(code === 403 || code === 451 ? "blocked" : "dead");
+      });
+      return;
+    }
+    // no hls.js support: let the browser try natively
+    video.addEventListener("canplay", () => finish("working"));
+    video.addEventListener("playing", () => finish("working"));
+    video.addEventListener("error", () => finish("dead"));
+    video.src = url; video.load();
+  } catch { finish("dead"); }
+}
+
+// Runs up to CHECK_CONCURRENCY checks at once (the old tool fired them all at
+// once with a 300ms stagger, which hammered the browser on long lists).
+function startCheckerQueue() {
+  const run = checkerRun;
+  let cursor = 0;
+  const next = () => {
+    if (run !== checkerRun) return;                         // a newer load/clear replaced this list
+    while (cursor < checkerChannels.length && checkerChannels[cursor].status !== "checking") cursor++;
+    if (cursor >= checkerChannels.length) return;
+    const c = checkerChannels[cursor++];
+    checkStreamStatus(c.url, (status) => {
+      if (run !== checkerRun) return;
+      setRowStatus(c, status);
+      next();
+    });
+  };
+  for (let i = 0; i < CHECK_CONCURRENCY; i++) next();
+}
+
+// ---------- Checker: rendering ----------
+const BADGE_TEXT = { working: "WORKING", blocked: "BLOCKED", dead: "DEAD", checking: "CHECKING…" };
+
+function rowHtml(c) {
+  const initials = escHtml((c.name || "?").slice(0, 2).toUpperCase());
+  const logo = c.logo
+    ? `<img src="${escHtml(c.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-i="${initials}" onerror="this.parentNode.textContent=this.dataset.i">`
+    : initials;
+  return `<div class="chk-row" id="chk-row-${c.id}" data-id="${c.id}" data-status="${c.status}">
+    <input type="checkbox" class="chk-cb"${c.selected ? " checked" : ""}>
+    <div class="chk-logo">${logo}</div>
+    <div class="chk-info"><div class="chk-name" title="${escHtml(c.name)}">${escHtml(c.name)}</div><div class="chk-url" title="${escHtml(c.url)}">${escHtml(c.url)}</div></div>
+    <span class="chk-badge ${c.status}">${BADGE_TEXT[c.status] || ""}</span>
+    <div class="chk-actions">
+      <button class="chk-act" data-act="copy" type="button" title="URL কপি"><i class="fa-regular fa-copy"></i></button>
+      <button class="chk-act rm" data-act="remove" type="button" title="তালিকা থেকে সরান"><i class="fa-solid fa-xmark"></i></button>
+      <button class="chk-act" data-act="play" type="button" title="প্লে করুন"><i class="fa-solid fa-play"></i></button>
+    </div>
+  </div>`;
+}
+
+function setRowStatus(c, status) {
+  c.status = status;
+  const row = document.getElementById("chk-row-" + c.id);
+  if (row) {
+    row.dataset.status = status;
+    const b = row.querySelector(".chk-badge");
+    if (b) { b.className = "chk-badge " + status; b.textContent = BADGE_TEXT[status] || ""; }
+  }
+  updateCheckerSummary();
+}
+
+function checkerCounts() {
+  const n = { all: checkerChannels.length, working: 0, blocked: 0, dead: 0, checking: 0 };
+  checkerChannels.forEach((c) => { if (n[c.status] !== undefined && c.status !== "checking") n[c.status]++; else n.checking++; });
+  return n;
+}
+
+function updateCheckerSummary() {
+  const n = checkerCounts();
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("chkNAll", n.all); set("chkNWorking", n.working); set("chkNBlocked", n.blocked); set("chkNDead", n.dead);
+  const s = $("#chkSummary");
+  if (s) s.innerHTML = `${n.all} channels — <b class="w">${n.working} working</b> · <b class="d">${n.dead + n.blocked} Dead/Blocked</b> · ${n.checking} Checking`;
+}
+
+function renderCheckerResults() {
+  const box = $("#chkResults"), listEl = $("#chkList");
+  if (!box || !listEl) return;
+  if (!checkerChannels.length) { box.classList.add("hidden"); listEl.innerHTML = ""; updateCheckerSummary(); return; }
+  box.classList.remove("hidden");
+  listEl.dataset.filter = checkerFilter;
+  listEl.innerHTML = checkerChannels.map(rowHtml).join("");
+  $$("#chkTabs .chk-tab").forEach((t) => t.classList.toggle("active", t.dataset.filter === checkerFilter));
+  updateCheckerSummary();
+}
+
+function setCheckerFilter(f) {
+  checkerFilter = f;
+  const listEl = $("#chkList"); if (listEl) listEl.dataset.filter = f;
+  $$("#chkTabs .chk-tab").forEach((t) => t.classList.toggle("active", t.dataset.filter === f));
+}
+
+const visibleCheckerChannels = () => checkerChannels.filter((c) => checkerFilter === "all" || c.status === checkerFilter);
+const checkerChannelById = (id) => checkerChannels.find((c) => c.id === Number(id));
+
+function syncCheckerCheckboxes() {
+  $$("#chkList .chk-row").forEach((row) => {
+    const c = checkerChannelById(row.dataset.id); const cb = row.querySelector(".chk-cb");
+    if (c && cb) cb.checked = !!c.selected;
+  });
+}
+
+// ---------- Checker: toolbar actions ----------
+async function copyChannels(list, label) {
+  if (!list.length) return toast(`${label}: কোনো চ্যানেল নেই`);
+  const ok = await copyText(channelsToM3U(list));
+  toast(ok ? `${list.length}টা চ্যানেল কপি হয়েছে (${label})` : "কপি করা যায়নি");
+}
+
+function playCheckerChannel(c) {
+  const ch = { id: "chk_" + c.id, name: c.name, logo: c.logo, group: c.group || "Checker", sources: [c.url], sourceTags: new Set(["Checker"]), liveStatus: "on" };
+  closeToolsPage();
+  openPlayer(ch);
+}
+
+function saveSelectedAsCustom() {
+  const picked = checkerChannels.filter((c) => c.selected);
+  if (!picked.length) return toast("আগে সেভ করার চ্যানেলগুলো সিলেক্ট করুন");
+  const byUrl = new Map(loadCustomChannels().map((c) => [c.url, c]));
+  let added = 0;
+  picked.forEach((c) => {
+    if (!byUrl.has(c.url)) added++;
+    byUrl.set(c.url, { name: c.name, url: c.url, logo: c.logo, group: c.group });
+  });
+  try { localStorage.setItem(LS_CUSTOM_CHANNELS, JSON.stringify([...byUrl.values()])); }
+  catch { return toast("সেভ করা যায়নি (স্টোরেজ ভর্তি?)"); }
+  toast(`${added}টা নতুন Custom চ্যানেল সেভ হয়েছে — রিলোড হচ্ছে…`);
+  setTimeout(() => location.reload(), 900);
+}
+
+function removeCustomChannels() {
+  const n = loadCustomChannels().length;
+  if (!n) return toast("কোনো Custom চ্যানেল সেভ করা নেই");
+  if (!confirm(`সেভ করা ${n}টা Custom চ্যানেল মুছে ফেলবেন?`)) return;
+  try { localStorage.removeItem(LS_CUSTOM_CHANNELS); } catch {}
+  toast("Custom চ্যানেল মুছে ফেলা হয়েছে — রিলোড হচ্ছে…");
+  setTimeout(() => location.reload(), 900);
+}
+
+// ---------- wiring ----------
+let _toolsWired = false;
+function setupToolsPage() {
+  if (_toolsWired) return;   // safe to call twice — listeners are only attached once
+  _toolsWired = true;
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+
+  on("toolsBtn", "click", toggleToolsPage);
+  // typing in the main search box means "I want to browse channels" — leave Tools
+  on("searchInput", "input", () => closeToolsPage());
+
+  // saved playlists
+  renderSavedPlaylists();
+  on("plStoreAdd", "click", addSavedPlaylist);
+  on("plStoreUrl", "keydown", (e) => { if (e.key === "Enter") addSavedPlaylist(); });
+  on("plStoreList", "click", (e) => {
+    const btn = e.target.closest("[data-act]"); if (!btn) return;
+    const item = btn.closest(".pl-store-item"); const list = loadSavedPlaylists(); const p = list[Number(item.dataset.i)];
+    if (!p) return;
+    if (btn.dataset.act === "load") {
+      loadPlaylistFromUrl(p.url, p.name);
+      const r = $("#chkResults") || $("#chkStatus"); if (r) r.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (btn.dataset.act === "del") {
+      if (!confirm(`"${p.name || p.url}" মুছে ফেলবেন?`)) return;
+      list.splice(Number(item.dataset.i), 1); saveSavedPlaylists(list); renderSavedPlaylists();
+    }
+  });
+
+  // single URL / file / bulk
+  on("chkPlayBtn", "click", chkPlay);
+  on("chkCheckBtn", "click", chkCheck);
+  on("chkSingleUrl", "keydown", (e) => { if (e.key === "Enter") chkPlay(); });
+  on("chkBrowseBtn", "click", () => { const f = $("#chkFileInput"); if (f) f.click(); });
+  on("chkFileInput", "change", (e) => { handleCheckerFile(e.target.files && e.target.files[0]); e.target.value = ""; });
+  on("chkClearBtn", "click", () => { const u = $("#chkSingleUrl"); if (u) u.value = ""; clearChecker(); });
+  on("chkRemoveCustomBtn", "click", removeCustomChannels);
+  on("chkCheckAllBtn", "click", chkBulkRun);
+  on("chkBulkClearBtn", "click", () => { const b = $("#chkBulk"); if (b) b.value = ""; clearChecker(); });
+
+  // results: filter tabs, row actions, checkboxes
+  on("chkTabs", "click", (e) => { const t = e.target.closest(".chk-tab"); if (t) setCheckerFilter(t.dataset.filter); });
+  on("chkList", "click", (e) => {
+    const btn = e.target.closest(".chk-act"); if (!btn) return;
+    const row = btn.closest(".chk-row"); const c = row && checkerChannelById(row.dataset.id); if (!c) return;
+    if (btn.dataset.act === "copy") copyText(c.url).then((ok) => toast(ok ? "URL কপি হয়েছে" : "কপি করা যায়নি"));
+    else if (btn.dataset.act === "play") playCheckerChannel(c);
+    else if (btn.dataset.act === "remove") {
+      checkerChannels = checkerChannels.filter((x) => x !== c);
+      row.remove();
+      checkerChannels.length ? updateCheckerSummary() : renderCheckerResults();
+    }
+  });
+  on("chkList", "change", (e) => {
+    if (!e.target.classList.contains("chk-cb")) return;
+    const row = e.target.closest(".chk-row"); const c = row && checkerChannelById(row.dataset.id);
+    if (c) c.selected = e.target.checked;
+  });
+
+  // toolbar
+  on("chkSelectAll", "click", () => {
+    const vis = visibleCheckerChannels();
+    const allSelected = vis.length > 0 && vis.every((c) => c.selected);
+    vis.forEach((c) => { c.selected = !allSelected; });
+    syncCheckerCheckboxes();
+  });
+  on("chkCopySelected", "click", () => copyChannels(checkerChannels.filter((c) => c.selected), "Selected"));
+  on("chkCopyWorking", "click", () => copyChannels(checkerChannels.filter((c) => c.status === "working"), "Working"));
+  on("chkCopyDead", "click", () => copyChannels(checkerChannels.filter((c) => c.status === "dead"), "Dead"));
+  on("chkCopyBlocked", "click", () => copyChannels(checkerChannels.filter((c) => c.status === "blocked"), "Blocked"));
+  on("chkSaveCustom", "click", saveSelectedAsCustom);
+
+  const n = loadCustomChannels().length;
+  if (n) setChkStatus(`${n}টা Custom চ্যানেল সেভ করা আছে`);
+}
+
 
 document.addEventListener("DOMContentLoaded", init);
