@@ -87,7 +87,6 @@ const CORS_PROXIES = [
 ];
 
 const LS_FAV = "obiram_favorites";
-const LS_RESUME = "obiram_resume";
 
 let CHANNELS = [];      // flat list {id,name,group,logo,sources[]}
 let GROUPS = [];        // ordered unique group names
@@ -1264,7 +1263,6 @@ function relistNow() {
   updateChipCounts();
   updateServerFilterCounts();
   applyFilters();
-  renderResumeRow();
   renderLiveEventsRow();
   renderUpdatesTicker();
 
@@ -1297,80 +1295,6 @@ function setupOffChannelToggle() {
   btn?.addEventListener("click", () => setShowOff(!SHOW_OFF_CHANNELS));
   revealBtn?.addEventListener("click", () => setShowOff(true));
   sync();
-}
-
-// ---------- Resume row (Last watched channel) ----------
-let _resumeAutoScrollTimer = null;
-
-function renderResumeRow() {
-  const section = $("#resumeSection");
-  const row = $("#resumeRow");
-
-  // লাস্ট দেখা চ্যানেল বের করা
-  const resume = loadJSON(LS_RESUME, null);
-  let lastWatched = null;
-  if (resume) {
-    const chan = CHANNELS.find((c) => c.id === resume.id);
-    if (chan && isChannelVisible(chan)) lastWatched = chan;
-  }
-
-  const finalList = [];
-  if (lastWatched) finalList.push(lastWatched);
-
-  // কিছুই দেখানোর না থাকলে সেকশন লুকিয়ে ফেলা
-  if (!finalList.length) {
-    section.classList.add("hidden");
-    stopResumeAutoScroll();
-    return;
-  }
-
-  section.classList.remove("hidden");
-  row.innerHTML = "";
-
-  finalList.forEach((chan) => {
-    const card = document.createElement("div");
-    card.className = "resume-card";
-    const logoHtml = chan.logo
-      ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
-      : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`;
-    card.innerHTML = `
-      <div class="rc-icon-box">${logoHtml}</div>
-      <div class="rc-name">${chan.name}</div>
-      <div class="rc-grp">${chan.group}</div>
-    `;
-    card.addEventListener("click", () => openPlayer(chan));
-    row.appendChild(card);
-  });
-
-  // ৪. একাধিক চ্যানেল থাকলে auto-scroll চালু করা
-  if (finalList.length > 1) {
-    startResumeAutoScroll(row);
-  } else {
-    stopResumeAutoScroll();
-  }
-}
-
-function startResumeAutoScroll(row) {
-  stopResumeAutoScroll();
-
-  let paused = false;
-  row.addEventListener("mouseenter", () => (paused = true));
-  row.addEventListener("mouseleave", () => (paused = false));
-  row.addEventListener("touchstart", () => (paused = true), { passive: true });
-  row.addEventListener("touchend", () => setTimeout(() => (paused = false), 2000), { passive: true });
-
-  _resumeAutoScrollTimer = setInterval(() => {
-    if (paused) return;
-    const maxScroll = row.scrollWidth - row.clientWidth;
-    if (maxScroll <= 0) return;
-
-    if (row.scrollLeft >= maxScroll - 2) {
-      // শেষ পর্যন্ত পৌঁছালে শুরুতে ফিরে যাওয়া
-      row.scrollTo({ left: 0, behavior: "smooth" });
-    } else {
-      row.scrollBy({ left: 160, behavior: "smooth" });
-    }
-  }, 3000);
 }
 
 // ---------- Updates ticker (inline in the Live Events header) ----------
@@ -1459,7 +1383,7 @@ function renderLiveEventsRow() {
 
   list.forEach((chan) => {
     const card = document.createElement("div");
-    card.className = "resume-card live-event-card";
+    card.className = "mini-chan-card live-event-card";
     const logoHtml = chan.logo
       ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
       : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`;
@@ -1508,17 +1432,6 @@ function stopLiveEventsAutoScroll() {
   }
 }
 
-function stopResumeAutoScroll() {
-  if (_resumeAutoScrollTimer) {
-    clearInterval(_resumeAutoScrollTimer);
-    _resumeAutoScrollTimer = null;
-  }
-}
-
-function saveResume(chan) {
-  saveJSON(LS_RESUME, { id: chan.id, t: Date.now() });
-}
-
 // ---------- Search ----------
 function setupHomeButton() {
   const btn = $("#homeBtn");
@@ -1558,8 +1471,6 @@ function setupHelpDrawer() {
 function openPlayer(chan) {
   currentChannel = chan;
   activeChannelIndex = CHANNELS.findIndex((c) => c.id === chan.id);
-  saveResume(chan);
-  renderResumeRow();
 
   cvInitVideoEvents();
   playChannel(chan);
@@ -2484,7 +2395,6 @@ async function init() {
         renderServerFilterMenu();
         renderChipBar();
         applyFilters();
-        renderResumeRow();
         renderLiveEventsRow();
         renderUpdatesTicker();
         setSplashProgress(100, "");
@@ -2506,7 +2416,6 @@ async function init() {
     renderServerFilterMenu();
     renderChipBar();
     applyFilters();
-    renderResumeRow();
     renderLiveEventsRow();
     renderUpdatesTicker();
 
