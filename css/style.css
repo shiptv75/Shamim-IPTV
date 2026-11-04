@@ -1044,3 +1044,112 @@ body.tools-mode #liveEventsSection{ display:none !important; }
   .chk-row .chk-actions{ grid-column: 3; }
   .chk-logo{ width:40px; }
 }
+
+
+/* ============================================================
+   THEMES
+   Dark is the default (the :root tokens at the top of this file).
+   Light is applied by <html data-theme="light">. Because almost every
+   color goes through the tokens, most of the site flips by itself —
+   the rules below only cover the places that hard-code a color.
+   The video, its controls and the fullscreen overlays stay dark in
+   BOTH themes (they sit on top of a black picture).
+   ============================================================ */
+:root{ color-scheme: dark; }
+
+html[data-theme="light"]{
+  color-scheme: light;
+  --void:#EDF1F7;   --void-2:#E4EAF3;
+  --surface:#FFFFFF; --surface-2:#F2F5FA;
+  --line:#D3DCE8;
+  --sig:#00935C;  --sig-2:#067A4D;  --glow:#00A86B;
+  --text:#0F1B2D;  --muted:#566579;  --muted-2:#8392A6;
+  --gold:#B45309;  --danger:#DC2626;
+  /* the player card below the video */
+  --cv-primary:#00935C; --cv-primary-dark:#067A4D;
+  --cv-surface:#FFFFFF; --cv-border:#D3DCE8;
+  --cv-text-head:#0F1B2D; --cv-text-sub:#566579; --cv-logo-bg:#F2F5FA;
+}
+
+/* theme toggle button: sun in dark (tap → light), moon in light (tap → dark) */
+.theme-btn .ico-moon{ display:none; }
+html[data-theme="light"] .theme-btn .ico-sun{ display:none; }
+html[data-theme="light"] .theme-btn .ico-moon{ display:block; }
+.theme-btn:hover{ border-color: var(--sig); color: var(--sig); }
+
+/* splash */
+html[data-theme="light"] .splash{ background:#F4F7FB; }
+html[data-theme="light"] .splash-wordmark{ color:#0F1B2D; }
+html[data-theme="light"] .splash-bar{ background:#D3DCE8; }
+
+/* page chrome */
+html[data-theme="light"] .topbar{ background: rgba(255,255,255,.88); }
+html[data-theme="light"] .chip-bar-wrap{ background: rgba(237,241,247,.9); }
+html[data-theme="light"] .chip-arrow{ background: rgba(15,27,45,.06); }
+html[data-theme="light"] .server-filter-item.active{
+  background: linear-gradient(90deg, rgba(0,147,92,.16), rgba(0,147,92,.04)); color: var(--sig);
+}
+html[data-theme="light"] .chan-status.status-checking{ background: rgba(15,27,45,.12); }
+
+/* soft neutral shadows instead of the green glow */
+html[data-theme="light"] .channel-pane,
+html[data-theme="light"] .live-events-section,
+html[data-theme="light"] .cv-shell,
+html[data-theme="light"] .tools-card{ box-shadow: 0 6px 22px -8px rgba(15,27,45,.18); }
+html[data-theme="light"] .server-filter-menu,
+html[data-theme="light"] .toast{ box-shadow: 0 18px 40px -14px rgba(15,27,45,.35); }
+
+/* the idle poster sits on the always-black video: keep its text light even if the logo fails to load */
+.cv-poster-overlay{ color:#cbd5e1; }
+
+/* Tools page: the pale dark-theme accents wash out on white */
+.chk-status.ok{ color:#4ade80; }
+.chk-status.err{ color:#f87171; }
+html[data-theme="light"] .chk-status.ok{ color:#15803d; }
+html[data-theme="light"] .chk-status.err{ color:#b91c1c; }
+html[data-theme="light"] .tools-page .btn-outline{ color: var(--text); border-color: var(--line); }
+html[data-theme="light"] .tools-page .btn-outline:hover{ border-color: var(--sig); color: var(--sig); }
+html[data-theme="light"] .btn-danger,
+html[data-theme="light"] .pl-store-btn.del{ color:#b91c1c; border-color: rgba(185,28,28,.4); background: rgba(220,38,38,.07); }
+html[data-theme="light"] .pl-store-btn.del:hover,
+html[data-theme="light"] .btn-danger:hover{ background: rgba(220,38,38,.14); }
+html[data-theme="light"] .chk-tab[data-filter="working"].active{ background: rgba(22,163,74,.14); border-color:#16a34a; color:#15803d; }
+html[data-theme="light"] .chk-tab[data-filter="blocked"].active{ background: rgba(147,51,234,.12); border-color:#9333ea; color:#7e22ce; }
+html[data-theme="light"] .chk-tab[data-filter="dead"].active{ background: rgba(220,38,38,.12); border-color:#dc2626; color:#b91c1c; }
+html[data-theme="light"] .chk-tab-n,
+html[data-theme="light"] .chk-badge.checking,
+html[data-theme="light"] .chk-badge.unchecked{ background: rgba(15,27,45,.07); }
+html[data-theme="light"] .chk-summary .w{ color:#15803d; }
+html[data-theme="light"] .chk-summary .d{ color:#b91c1c; }
+html[data-theme="light"] .chk-tool-btn.working{ color:#15803d; border-color: rgba(22,163,74,.45); background: rgba(22,163,74,.08); }
+html[data-theme="light"] .chk-tool-btn.dead{ color:#b91c1c; border-color: rgba(220,38,38,.45); background: rgba(220,38,38,.07); }
+html[data-theme="light"] .chk-tool-btn.blocked{ color:#7e22ce; border-color: rgba(147,51,234,.45); background: rgba(147,51,234,.07); }
+html[data-theme="light"] .chk-badge.working{ color:#15803d; background: rgba(22,163,74,.14); }
+html[data-theme="light"] .chk-badge.blocked{ color:#7e22ce; background: rgba(147,51,234,.12); }
+html[data-theme="light"] .chk-badge.dead{ color:#b91c1c; background: rgba(220,38,38,.12); }
+
+/* ---- Topbar on small screens ----
+   The search box used to refuse to shrink (flex items won't go below their
+   content width), which pushed the right-hand buttons off-screen; the new
+   Tools + theme buttons made it worse. Let it shrink, tighten spacing, and
+   on very narrow phones drop the decorative clock. Height stays one row so
+   the sticky offsets (57px) used by the chip bar and player still line up. */
+.topbar-search{ min-width:0; }
+.topbar-search input{ min-width:0; width:100%; }
+@media (max-width: 520px){
+  .topbar{ gap:8px; padding-left:10px; padding-right:10px; }
+  .brand-word{ font-size:12px; letter-spacing:.4px; }
+  .topbar-right{ gap:6px; flex-shrink:0; }
+  .topbar-right .server-filter-btn,
+  .topbar-right .off-toggle-btn{ padding:7px 9px; }
+  .live-clock{ display:none; }
+}
+
+/* very narrow phones (≤380px): squeeze a little more so the search box keeps a usable width */
+@media (max-width: 380px){
+  .topbar{ gap:6px; padding-left:8px; padding-right:8px; }
+  .brand-word{ font-size:11px; letter-spacing:.2px; }
+  .topbar-right{ gap:4px; }
+  .topbar-right .server-filter-btn,
+  .topbar-right .off-toggle-btn{ padding:7px 7px; }
+}
