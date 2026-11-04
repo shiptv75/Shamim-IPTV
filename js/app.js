@@ -4,7 +4,7 @@
 
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
 const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
-const M3U_URL = "https://raw.githubusercontent.com/Tapas-Creation/M3U-Live/refs/heads/main/Skym3u.dev/1.m3u";
+const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
 const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
@@ -568,189 +568,550 @@ function buildGroups() {
   });
 }
 
-// ---------- Live status checking (accurate ON/OFF, not just playlist metadata) ----------
-// Rationale: the "off" flag from the playlist source only exists for a
-// handful of HridoyTV entries. The other two M3U sources carry no such
-// signal at all, so every channel from them would otherwise always render
-// "ON" regardless of whether the stream actually loads. To give a genuinely
-// accurate status we do a real, lightweight connectivity probe using the
-// exact same loading mechanism the player itself uses (hls.js manifest
-// fetch for .m3u8, a cancelled GET for everything else) — so the result
-// reflects whether the stream will actually play on this site, not just
-// whether the origin server is reachable in the abstract.
+// ---------- Live status: verified playability, not just "the server answered" ----------
+// Why this was rebuilt: the old probe asked the wrong question. For HLS it
+// stopped at MANIFEST_PARSED — i.e. "the playlist file parsed", which proves
+// nothing at all about the video behind it — and for everything else it only
+// asked "did the server return 200?", which countless dead endpoints do while
+// serving an error page. That is exactly how a channel ends up wearing an ON
+// badge and then failing the moment it is clicked.
+//
+// A channel is now called ON only after real, playable media has been proved:
+//   1. read the playlist, following master -> variant -> media playlist,
+//   2. reject codecs this browser cannot decode (e.g. HEVC in Chrome),
+//   3. download the first media segment (a few KB) and check that the bytes are
+//      actually media — MPEG-TS sync bytes, MP4/FLV/WebM magic — instead of an
+//      HTML/JSON error page.
+// The check also remembers WHICH source URL proved it, so the player opens the
+// working mirror instead of always trying "Server 1" first, and a channel whose
+// proof has gone stale is re-proved before it plays. Anything that fails while
+// playing is demoted to OFF, so a badge cannot stay wrong for long.
 const LIVE_CACHE_KEY = "obiram_stream_status";
-const LIVE_CACHE_TTL = 20 * 60 * 1000; // 20 minutes
-const LIVE_CHECK_TIMEOUT = 6000;
-// Raised from 4: every channel now gets swept in the background (not just the
-// ones scrolled into view), so the whole list has to finish in a sane amount
-// of time. 6 channels x up to 3 parallel source probes = ~18 in-flight
-// requests worst case, which stays within what mobile browsers handle happily.
-const MAX_CONCURRENT_PROBES = 6;
-// Only probe the first few merged sources of a channel. Beyond three it is
-// almost always the same stream mirrored again, and each extra URL costs a
-// full timeout on dead channels.
-const MAX_SOURCES_PER_PROBE = 3;
-// How often to look for channels whose cached status has gone stale, so a
-// channel that comes back online un-hides itself without a page reload.
+const LIVE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+// Bumped when the meaning of a cached result changes. Results written by the
+// old manifest-only checker are dropped on load, so no visitor inherits a
+// false ON from a previous version of this code.
+const LIVE_CACHE_VERSION = 2;
 const RECHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-// Grid is re-listed at most this often while statuses stream in, so hundreds
-// of resolving probes can't cause hundreds of re-renders.
+// How many channels are probed at once (each with up to two mirrors racing).
+// The probes are small ranged requests now, so this stays gentle while being
+// roughly twice as fast as the old 6-at-a-time manifest check.
+const MAX_CONCURRENT_PROBES = 10;
+// Sources tried per channel during the sweep. The first two mirrors almost
+// always cover it, so a dead channel costs two probes instead of five.
+const MAX_SOURCES_PER_PROBE = 2;
 const RELIST_THROTTLE = 700;
+const PROBE_MANIFEST_TIMEOUT = 3000;
+const PROBE_SEGMENT_TIMEOUT = 3500;
+const PROBE_MAX_PLAYLIST_BYTES = 250000;
+const PROBE_SEGMENT_BYTES = 8192;
+const PROBE_URL_CACHE_TTL = 2 * 60 * 1000;
+// A click only re-verifies when the last proof is older than this; inside the
+// window playback starts instantly.
+const PLAY_FRESH_MS = 90 * 1000;
+const PLAY_CHECK_BUDGET = 7000;
+const PROBE_MP4_BOX_TYPES = new Set(["ftyp", "styp", "moof", "moov", "sidx", "emsg", "mdat", "free", "skip"]);
 
 let liveStatusCache = loadJSON(LIVE_CACHE_KEY, {});
+
+// Results are pinned to the checker version that produced them; anything older
+// (status only, no proof, no verified source) is discarded here and re-checked.
+(function dropStaleStatusCache() {
+  let changed = false;
+  Object.keys(liveStatusCache).forEach((id) => {
+    const entry = liveStatusCache[id];
+    if (!entry || entry.v !== LIVE_CACHE_VERSION) {
+      delete liveStatusCache[id];
+      changed = true;
+    }
+  });
+  if (changed) saveJSON(LIVE_CACHE_KEY, liveStatusCache);
+})();
+
 let activeProbes = 0;
 const probeQueue = [];
 let statusObserver = null;
+let statusSaveTimer = null;
 
+// Writing the whole cache after every single channel would stringify a 100 KB
+// object well over a thousand times per sweep, so persistence is coalesced.
+function persistStatusCacheSoon() {
+  if (statusSaveTimer) return;
+  statusSaveTimer = setTimeout(() => {
+    statusSaveTimer = null;
+    pruneStatusCache();
+    saveJSON(LIVE_CACHE_KEY, liveStatusCache);
+  }, 1200);
+}
+
+// Channel names come and go in these playlists, so entries for channels that no
+// longer exist would otherwise accumulate in localStorage forever.
+function pruneStatusCache() {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  Object.keys(liveStatusCache).forEach((id) => {
+    const entry = liveStatusCache[id];
+    if (!entry || entry.v !== LIVE_CACHE_VERSION || entry.ts < cutoff) delete liveStatusCache[id];
+  });
+}
+window.addEventListener("pagehide", () => {
+  if (!statusSaveTimer) return;
+  clearTimeout(statusSaveTimer);
+  statusSaveTimer = null;
+  saveJSON(LIVE_CACHE_KEY, liveStatusCache);
+});
+
+// Cached results carry the verified source URL, so a repeat visit can start
+// straight on the mirror that worked instead of re-discovering it.
 function getCachedStatus(chan) {
   const entry = liveStatusCache[chan.id];
-  if (entry && Date.now() - entry.ts < LIVE_CACHE_TTL) return entry.status;
+  if (entry && entry.v === LIVE_CACHE_VERSION && Date.now() - entry.ts < LIVE_CACHE_TTL) {
+    return { status: entry.status, url: entry.url || null, ts: entry.ts };
+  }
   return null;
 }
-function setCachedStatus(chan, status) {
-  liveStatusCache[chan.id] = { status, ts: Date.now() };
-  saveJSON(LIVE_CACHE_KEY, liveStatusCache);
+function setCachedStatus(chan, status, url) {
+  liveStatusCache[chan.id] = { status, url: url || null, ts: Date.now(), v: LIVE_CACHE_VERSION };
+  persistStatusCacheSoon();
 }
 
 // Decides each channel's starting badge state before any probing happens.
 function initLiveStatus(chan) {
   if (chan.isOff) { chan.liveStatus = "off"; return; } // source explicitly marked it down — authoritative
   const cached = getCachedStatus(chan);
-  chan.liveStatus = cached || "checking";
+  chan.liveStatus = cached ? cached.status : "checking";
+  chan.verifiedUrl = cached ? cached.url : null;
+  chan.verifiedAt = cached ? cached.ts : 0;
 }
 
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
-    new Promise((resolve) => setTimeout(() => resolve(false), ms)),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
   ]);
 }
 
-// Token/session-gated stream URLs (signed CDN links) are exactly the ones
-// where a manifest can parse successfully even after the token has expired
-// — the manifest file itself stays valid, but every segment it points to
-// then 403s. This is where "ON but actually dead" concentrates (beIN
-// Sports, LaLiga, FanCode, TUDN and similar premium sports feeds almost
-// always use signed URLs), while plain live-TV CDN links rarely do. Flagging
-// these lets the probe spend its extra scrutiny only where it's actually
-// needed, instead of slowing every channel down for the sake of a few.
-function looksTokenGated(url) {
-  return /hdnea|hdnts|token=|signature=|policy=|expires=|exp=|auth_key|X-Amz-Signature/i.test(url);
+// ---- one abortable request ----
+function probeTimer(ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { controller, clear: () => clearTimeout(timer) };
 }
 
-function probeViaHls(url) {
+async function probeFetch(url, opts = {}) {
+  const t = probeTimer(opts.timeoutMs || PROBE_SEGMENT_TIMEOUT);
+  const headers = {};
+  if (opts.range) headers.Range = opts.range;
+  try {
+    return await fetch(url, {
+      method: "GET",
+      headers,
+      mode: "cors",
+      cache: "no-store",
+      redirect: "follow",
+      credentials: "omit",
+      signal: t.controller.signal,
+    });
+  } finally {
+    t.clear();
+  }
+}
+
+// Reads at most maxBytes and cancels the rest — a live TS endpoint would
+// happily stream forever if it were allowed to.
+async function probeReadBytes(res, maxBytes) {
+  try {
+    if (!res.body || !res.body.getReader) {
+      const buf = await res.arrayBuffer();
+      return new Uint8Array(buf.slice(0, maxBytes));
+    }
+    const reader = res.body.getReader();
+    const chunks = [];
+    let size = 0;
+    while (size < maxBytes) {
+      const { value, done } = await reader.read();
+      if (done || !value || !value.length) break;
+      chunks.push(value);
+      size += value.length;
+    }
+    try { reader.cancel(); } catch {}
+    const out = new Uint8Array(Math.min(size, maxBytes));
+    let off = 0;
+    for (const chunk of chunks) {
+      const take = Math.min(chunk.length, out.length - off);
+      if (take <= 0) break;
+      out.set(chunk.subarray(0, take), off);
+      off += take;
+    }
+    return out;
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
+// ---- playlist parsing ----
+function probeResolve(base, relative) {
+  try { return new URL(relative, base).href; } catch { return relative; }
+}
+
+function probeAttrs(line) {
+  const out = {};
+  const re = /([A-Za-z0-9_-]+)=("[^"]*"|[^,]*)/g;
+  let m;
+  while ((m = re.exec(line))) {
+    let v = m[2].trim();
+    if (v.length >= 2 && v[0] === '"' && v[v.length - 1] === '"') v = v.slice(1, -1);
+    out[m[1].toUpperCase()] = v;
+  }
+  return out;
+}
+
+function probeHasExtM3u(bytes) {
+  const needle = "#EXTM3U";
+  const limit = Math.min(bytes.length, 4096) - needle.length;
+  for (let i = 0; i <= limit; i++) {
+    let match = true;
+    for (let k = 0; k < needle.length; k++) {
+      if (bytes[i + k] !== needle.charCodeAt(k)) { match = false; break; }
+    }
+    if (match) return true;
+  }
+  return false;
+}
+
+// Rejects playlists whose video codec this browser cannot decode at all.
+// Without this, a perfectly reachable HEVC channel counts as ON and then plays
+// audio only (or nothing) on Chrome — another "ON but useless" case.
+function probeCodecsPlayable(codecs) {
+  if (!codecs) return true;
+  const list = String(codecs).split(",").map((c) => c.trim()).filter(Boolean);
+  if (!list.length) return true;
+  const mime = `video/mp4; codecs="${list.join(",")}"`;
+  let proven = false;
+  let judged = false; // did this browser give a usable answer at all?
+
+  try {
+    if (window.MediaSource && typeof MediaSource.isTypeSupported === "function") {
+      judged = true;
+      if (MediaSource.isTypeSupported(mime)) proven = true;
+    }
+  } catch {}
+  try {
+    const video = document.createElement("video");
+    if (video.canPlayType) {
+      const verdict = video.canPlayType(mime);
+      if (typeof verdict === "string") judged = true;
+      if (verdict) proven = true; // "maybe" / "probably"
+    }
+  } catch {}
+
+  if (proven) return true;
+  // A browser that cannot answer must never have channels hidden because of it.
+  if (!judged) return true;
+  // Positively unsupported here: only distrust codecs that really are
+  // undecodable in practice (HEVC / AV1 / Dolby Vision). H.264 is left alone
+  // even in this branch, so one odd codec string can never hide half the site.
+  return !/hvc1|hev1|dvh1|dvhe|av01|vp09/i.test(list.join(","));
+}
+
+// ---- byte-level verdicts ----
+function probeLooksTextual(bytes) {
+  const n = Math.min(bytes.length, 256);
+  if (!n) return true;
+  let printable = 0;
+  for (let i = 0; i < n; i++) {
+    const b = bytes[i];
+    if (b === 9 || b === 10 || b === 13) { printable++; continue; }
+    if (b >= 32 && b <= 126) printable++;
+  }
+  return printable / n > 0.85;
+}
+
+// Decides whether a body is real media. This is the step that turns "the
+// server said 200" into actual proof of a playable stream.
+function classifyMediaBytes(bytes, contentType, encrypted) {
+  const len = bytes.length;
+  if (!len) return { ok: false, reason: "empty" };
+  const ct = contentType || "";
+  if (/text\/html|application\/json|text\/xml/i.test(ct)) return { ok: false, reason: "error-page" };
+  if (len < 188) return { ok: false, reason: "too-small" };
+  if (probeLooksTextual(bytes)) return { ok: false, reason: "error-page" };
+
+  // MPEG-TS: a 0x47 sync byte every 188 bytes.
+  let tsSync = 0;
+  for (let i = 0; i < len && i < 188 * 10; i += 188) if (bytes[i] === 0x47) tsSync++;
+  if (tsSync >= 2) return { ok: true, kind: "ts" };
+
+  // ISO-BMFF / fragmented MP4: 4-byte box size followed by the box type.
+  if (len >= 12) {
+    const box = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+    if (PROBE_MP4_BOX_TYPES.has(box)) return { ok: true, kind: "mp4" };
+  }
+  if (bytes[0] === 0x46 && bytes[1] === 0x4c && bytes[2] === 0x56) return { ok: true, kind: "flv" };
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return { ok: true, kind: "webm" };
+  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return { ok: true, kind: "mp3" };
+  if (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) return { ok: true, kind: "aac" };
+
+  // AES-encrypted HLS segments are ciphertext, so no magic bytes survive — but
+  // a real CDN still answers with a large binary body and a media content
+  // type, while an error page is textual and was rejected above.
+  const binaryish = /^(video\/|audio\/|application\/(octet-stream|mp2t|mpegurl|x-mpegurl|vnd\.apple\.mpegurl))/i.test(ct);
+  if (binaryish && len >= 1024) return { ok: true, kind: encrypted ? "encrypted" : "binary" };
+  if (encrypted && len >= 1024) return { ok: true, kind: "encrypted" };
+  return { ok: false, reason: "not-media" };
+}
+
+async function probePlaylistText(url) {
+  let res;
+  try {
+    res = await probeFetch(url, { timeoutMs: PROBE_MANIFEST_TIMEOUT });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const bytes = await probeReadBytes(res, PROBE_MAX_PLAYLIST_BYTES);
+  if (!bytes.length) return null;
+  let text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  if (text.indexOf("#EXTM3U") === -1) return null;
+  return text;
+}
+
+async function probeSegmentBytes(url, opts = {}) {
+  const encrypted = !!opts.encrypted;
+  let res;
+  try {
+    res = await probeFetch(url, { timeoutMs: PROBE_SEGMENT_TIMEOUT, range: `bytes=0-${PROBE_SEGMENT_BYTES - 1}` });
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+  // A few CDNs reject Range outright — ask again without it.
+  if (res.status === 416) {
+    try {
+      res = await probeFetch(url, { timeoutMs: PROBE_SEGMENT_TIMEOUT });
+    } catch {
+      return { ok: false, reason: "network" };
+    }
+  }
+  if (!res.ok) return { ok: false, reason: "http-" + res.status };
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  const bytes = await probeReadBytes(res, PROBE_SEGMENT_BYTES);
+  return classifyMediaBytes(bytes, contentType, encrypted);
+}
+
+function probePickVariant(text, base) {
+  const lines = text.split(/\r?\n/);
+  const variants = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith("#EXT-X-STREAM-INF")) continue;
+    const attrs = probeAttrs(line);
+    let j = i + 1;
+    while (j < lines.length && (!lines[j].trim() || lines[j].trim().startsWith("#"))) j++;
+    const uri = lines[j] ? lines[j].trim() : "";
+    if (!uri) continue;
+    variants.push({
+      url: probeResolve(base, uri),
+      bandwidth: parseInt(attrs.BANDWIDTH || "0", 10) || 0,
+      codecs: attrs.CODECS || "",
+    });
+  }
+  // Cheapest variant first: it answers fastest and is still proof that the CDN
+  // is serving this exact stream right now.
+  variants.sort((a, b) => a.bandwidth - b.bandwidth);
+  return variants;
+}
+
+async function probeMediaPlaylist(text, base, proxied) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  let initUrl = null;
+  let keyMethod = null;
+  const segmentUrls = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.startsWith("#EXT-X-MAP:")) {
+      const attrs = probeAttrs(line);
+      if (attrs.URI) initUrl = probeResolve(base, attrs.URI);
+    } else if (line.startsWith("#EXT-X-KEY:")) {
+      const attrs = probeAttrs(line);
+      if (attrs.METHOD) keyMethod = attrs.METHOD.toUpperCase();
+    } else if (line.startsWith("#EXTINF")) {
+      let j = i + 1;
+      while (j < lines.length && (!lines[j] || lines[j].startsWith("#"))) j++;
+      if (lines[j]) segmentUrls.push(probeResolve(base, lines[j]));
+    }
+  }
+
+  const encrypted = !!keyMethod && keyMethod !== "NONE";
+  const request = (u) => (proxied ? proxyWrapStream(u) : u);
+
+  // The LAST segment is the live edge and is the one certain to still exist: on
+  // a live playlist the FIRST segment is the oldest and may already have aged
+  // out of the CDN's window, which used to mark healthy channels as dead.
+  const lastSegment = segmentUrls.length ? segmentUrls[segmentUrls.length - 1] : null;
+  const firstSegment = segmentUrls.length ? segmentUrls[0] : null;
+
+  if (lastSegment) {
+    const verdict = await probeSegmentBytes(request(lastSegment), { encrypted });
+    if (verdict.ok) return { ok: true, kind: verdict.kind, url: request(lastSegment) };
+    // A URL-specific refusal is worth one look at the other end of the
+    // playlist; a network failure means the whole host is unreachable, so it
+    // is pointless (and slow) to ask again.
+    if (firstSegment && firstSegment !== lastSegment && /^http-(403|404|410|416)$/.test(verdict.reason || "")) {
+      const retry = await probeSegmentBytes(request(firstSegment), { encrypted });
+      return retry.ok ? { ok: true, kind: retry.kind, url: request(firstSegment) } : retry;
+    }
+    if (!initUrl) return verdict;
+  }
+
+  // fMP4 single-file layouts can put everything behind EXT-X-MAP; when there is
+  // no separate segment URI, the init segment is the only proof available.
+  if (initUrl) {
+    const initVerdict = await probeSegmentBytes(request(initUrl));
+    if (initVerdict.ok) return { ok: true, kind: initVerdict.kind, url: request(initUrl) };
+    if (!lastSegment) return initVerdict;
+  }
+  return { ok: false, reason: "no-segment" };
+}
+
+async function probeHlsChain(requestUrl, proxied) {
+  let base = realUrl(requestUrl);
+  let text = await probePlaylistText(requestUrl);
+  if (!text) return { ok: false, reason: "no-playlist" };
+
+  // master -> variant (repeated for master-of-masters, up to a sane depth)
+  for (let depth = 0; depth < 3 && /#EXT-X-STREAM-INF/.test(text); depth++) {
+    const variants = probePickVariant(text, base);
+    if (!variants.length) return { ok: false, reason: "no-variant" };
+    const variant = variants.find((v) => probeCodecsPlayable(v.codecs)) || null;
+    if (!variant) return { ok: false, reason: "codec-unsupported" };
+    base = variant.url;
+    text = await probePlaylistText(proxied ? proxyWrapStream(base) : base);
+    if (!text) return { ok: false, reason: "variant-unreachable" };
+  }
+  if (/#EXT-X-STREAM-INF/.test(text)) return { ok: false, reason: "playlist-too-deep" };
+  return await probeMediaPlaylist(text, base, proxied);
+}
+
+// Entry point: decide whether one source URL is playable right now.
+async function probeUrlDeep(rawUrl) {
+  const requestUrl = playbackUrl(rawUrl);
+  const proxied = requestUrl.startsWith(STREAM_PROXY_BASE);
+  const target = realUrl(requestUrl);
+
+  if (/\.m3u8/i.test(target)) return await probeHlsChain(requestUrl, proxied);
+
+  // Not an obvious playlist: sniff a small head of the response. This is what
+  // catches both "it is really a TS stream" and "it is an m3u8 served from an
+  // extension-less URL".
+  let res;
+  try {
+    res = await probeFetch(requestUrl, { timeoutMs: PROBE_SEGMENT_TIMEOUT, range: "bytes=0-65535" });
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+  if (res.status === 416) {
+    try {
+      res = await probeFetch(requestUrl, { timeoutMs: PROBE_SEGMENT_TIMEOUT });
+    } catch {
+      return { ok: false, reason: "network" };
+    }
+  }
+  if (!res.ok) return { ok: false, reason: "http-" + res.status };
+
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  const bytes = await probeReadBytes(res, 65536);
+  if (!bytes.length) return { ok: false, reason: "empty" };
+  if (!/text\/html/i.test(contentType) && probeHasExtM3u(bytes)) {
+    return await probeHlsChain(requestUrl, proxied);
+  }
+  // A plain HTTP stream is never an AES-encrypted HLS segment, so opaque
+  // bytes here must not be waved through as "probably media".
+  const verdict = classifyMediaBytes(bytes, contentType, false);
+  return verdict.ok
+    ? { ok: true, kind: verdict.kind, url: requestUrl }
+    : { ok: false, reason: verdict.reason, url: requestUrl };
+}
+
+// Safari (and older iOS) can play HLS natively even when XHR is blocked by
+// CORS, which a fetch-based probe simply cannot see. Worth trying only where
+// the failure looked like a network/CORS block, only for HLS, and only a
+// limited number of times per sweep so it can never slow everyone else down.
+const PROBE_NATIVE_HLS_SUPPORTED = (() => {
+  try { return !!document.createElement("video").canPlayType("application/vnd.apple.mpegurl"); } catch { return false; }
+})();
+let probeNativeBudget = 40;
+
+function probeNativePlayable(url) {
   return new Promise((resolve) => {
-    if (!window.Hls || !Hls.isSupported()) { resolve(null); return; } // can't tell — fall back to fetch
-    let done = false;
-    const hls = new Hls({ manifestLoadingTimeOut: LIVE_CHECK_TIMEOUT, manifestLoadingMaxRetry: 0, fragLoadingMaxRetry: 0 });
+    const v = document.createElement("video");
+    let settled = false;
     const finish = (ok) => {
-      if (done) return;
-      done = true;
-      try { hls.destroy(); } catch {}
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { v.pause(); v.removeAttribute("src"); v.load(); } catch {}
       resolve(ok);
     };
-    const needsSegmentProof = looksTokenGated(url);
-    // Speed over perfect accuracy for most channels — a parsed manifest is
-    // enough proof to call a channel ON, since waiting for a real segment on
-    // every single channel would make the whole scan noticeably slower. But
-    // for token-gated URLs (see looksTokenGated above) a parsed manifest
-    // genuinely doesn't prove anything — the manifest can stay valid long
-    // after the token has expired — so those specifically wait for a real
-    // segment (FRAG_LOADED) before being called ON. This never risks
-    // marking a genuinely live channel as OFF, which must not happen.
-    if (needsSegmentProof) {
-      hls.on(Hls.Events.FRAG_LOADED, () => finish(true));
-    } else {
-      hls.on(Hls.Events.MANIFEST_PARSED, () => finish(true));
-    }
-    hls.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) finish(false); });
-    try { hls.loadSource(url); } catch { finish(false); }
+    const timer = setTimeout(() => finish(false), 6000);
+    v.muted = true;
+    v.preload = "auto";
+    v.playsInline = true;
+    v.addEventListener("loadedmetadata", () => finish(true), { once: true });
+    v.addEventListener("error", () => finish(false), { once: true });
+    try { v.src = url; v.load(); } catch { finish(false); }
   });
 }
 
-async function probeViaFetch(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LIVE_CHECK_TIMEOUT);
-  try {
-    const res = await fetch(url, { method: "GET", mode: "cors", cache: "no-store", signal: controller.signal });
-    try { res.body && res.body.cancel && res.body.cancel(); } catch {}
-    return res.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// Results are memoised per source URL: the playlists repeat the same mirrors
+// across dozens of channel cards, so one probe answers many channels.
+const probeUrlCache = new Map();
 
-// A plain fetch only proves the server answered with HTTP 200 — it says
-// nothing about whether real video data came back. Several sources (this is
-// what was happening with TNT 1-4) respond 200 to every request but send an
-// empty/HTML/error body instead of an actual MPEG-TS stream, so the old check
-// marked them ON even though the player could never play them. Real MPEG-TS
-// packets always start with the sync byte 0x47, so reading just the first
-// chunk of the body and checking for it catches these fake-OK streams
-// without downloading the whole stream.
-async function probeViaTsSniff(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LIVE_CHECK_TIMEOUT);
-  try {
-    const res = await fetch(url, { method: "GET", mode: "cors", cache: "no-store", signal: controller.signal });
-    if (!res.ok || !res.body) return false;
-    const reader = res.body.getReader();
-    const { value } = await reader.read();
-    try { reader.cancel(); } catch {}
-    if (!value || value.length < 4) return false;
-    return value[0] === 0x47; // MPEG-TS sync byte
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+function probeUrlCached(rawUrl) {
+  const now = Date.now();
+  const hit = probeUrlCache.get(rawUrl);
+  if (hit && now - hit.ts < PROBE_URL_CACHE_TTL) return hit.promise;
 
-// Probes a single stream URL the same way the player itself would load it.
-async function probeOneUrlDirect(url) {
-  try {
-    if (/\.m3u8(\?|$)/i.test(realUrl(url))) {
-      const hlsTimeout = looksTokenGated(url) ? LIVE_CHECK_TIMEOUT + 3000 : LIVE_CHECK_TIMEOUT;
-      const hlsResult = await withTimeout(probeViaHls(url), hlsTimeout);
-      return hlsResult === null ? await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT) : hlsResult;
+  const promise = (async () => {
+    const deep = await probeUrlDeep(rawUrl).catch(() => ({ ok: false, reason: "error" }));
+    if (deep.ok) return deep;
+    if (PROBE_NATIVE_HLS_SUPPORTED && /\.m3u8/i.test(realUrl(rawUrl)) && deep.reason === "network" && probeNativeBudget > 0) {
+      probeNativeBudget--;
+      const nativeOk = await probeNativePlayable(playbackUrl(rawUrl));
+      if (nativeOk) return { ok: true, kind: "native", url: playbackUrl(rawUrl) };
     }
-    if (isTsStream(url)) {
-      return await withTimeout(probeViaTsSniff(url), LIVE_CHECK_TIMEOUT);
+    return deep;
+  })();
+
+  probeUrlCache.set(rawUrl, { ts: now, promise });
+  if (probeUrlCache.size > 4000) {
+    for (const [key, entry] of probeUrlCache) {
+      if (now - entry.ts > PROBE_URL_CACHE_TTL) probeUrlCache.delete(key);
     }
-    return await withTimeout(probeViaFetch(url), LIVE_CHECK_TIMEOUT);
-  } catch {
-    return false;
   }
+  return promise;
 }
 
-async function probeOneUrl(url) {
-  // probe exactly what playback will request (proxied for PROXY_SOURCES)
-  return probeOneUrlDirect(playbackUrl(url));
-}
-
-// Tries every merged source URL, all at once rather than one after another.
-// This is what makes auto-hiding practical: a channel with 3 dead sources used
-// to burn 3 x 7s = 21s before it could be called OFF, so a few hundred
-// channels took forever to classify. Racing them caps a channel at roughly a
-// single timeout, and the answer is identical — the badge reads ON as long as
-// at least one source actually plays, matching what the server-switch dropdown
-// in the player can fall back to.
-function probeAnySource(urls) {
+// Races every mirror of a channel and resolves on the first one that is proven
+// playable — one timeout per channel instead of one per source.
+function probeRaceSources(rawUrls) {
   return new Promise((resolve) => {
-    const list = (urls || []).slice(0, MAX_SOURCES_PER_PROBE);
-    if (!list.length) { resolve(false); return; }
+    const list = (rawUrls || []).filter(Boolean);
+    if (!list.length) { resolve({ ok: false, rawUrl: null }); return; }
     let pending = list.length;
     let settled = false;
-    list.forEach((url) => {
-      probeOneUrl(url)
-        .catch(() => false)
-        .then((ok) => {
+    list.forEach((rawUrl) => {
+      probeUrlCached(rawUrl)
+        .then((result) => {
           if (settled) return;
-          if (ok) { settled = true; resolve(true); return; }
+          if (result && result.ok) { settled = true; resolve({ ok: true, rawUrl, kind: result.kind }); return; }
           pending -= 1;
-          if (pending === 0) { settled = true; resolve(false); }
+          if (pending === 0) { settled = true; resolve({ ok: false, rawUrl: null }); }
+        })
+        .catch(() => {
+          if (settled) return;
+          pending -= 1;
+          if (pending === 0) { settled = true; resolve({ ok: false, rawUrl: null }); }
         });
     });
   });
@@ -758,11 +1119,48 @@ function probeAnySource(urls) {
 
 async function probeChannelStatus(chan) {
   if (chan.isOff) return; // never override an authoritative source-level off
-  const ok = await probeAnySource(chan.sources);
-  chan.liveStatus = ok ? "on" : "off";
-  setCachedStatus(chan, chan.liveStatus);
+  const urls = (chan.sources || []).slice(0, MAX_SOURCES_PER_PROBE);
+  const result = await probeRaceSources(urls);
+  chan.liveStatus = result.ok ? "on" : "off";
+  chan.verifiedUrl = result.ok ? result.rawUrl : null;
+  chan.verifiedAt = result.ok ? Date.now() : 0;
+  setCachedStatus(chan, chan.liveStatus, chan.verifiedUrl);
   updateCardStatusBadge(chan);
   onStatusResolved();
+}
+
+// Reality disagreed with the badge: the player could not get this channel
+// going. Demote it immediately so the next visitor is not sent down the same
+// dead end, and let the grid hide it like any other dead channel.
+function markChannelDead(chan) {
+  if (!chan) return;
+  chan.liveStatus = "off";
+  chan.verifiedUrl = null;
+  chan.verifiedAt = 0;
+  setCachedStatus(chan, "off", null);
+  updateCardStatusBadge(chan);
+  updateChipCounts();
+  onStatusResolved();
+}
+
+// The video element really produced playback — the strongest proof there is.
+function markChannelLive(chan, rawUrl) {
+  if (!chan) return;
+  chan.liveStatus = "on";
+  if (rawUrl) chan.verifiedUrl = rawUrl;
+  chan.verifiedAt = Date.now();
+  setCachedStatus(chan, "on", chan.verifiedUrl);
+  updateCardStatusBadge(chan);
+}
+
+// Called just before playback. Returns a raw source URL that is playable right
+// now, or null. This is what stops a stale ON badge from opening a dead player.
+async function probeChannelNow(chan) {
+  if (!chan) return null;
+  const urls = (chan.sources || []).slice(0, 3);
+  if (!urls.length) return null;
+  const result = await withTimeout(probeRaceSources(urls), PLAY_CHECK_BUDGET);
+  return result && result.ok ? result.rawUrl : null;
 }
 
 function updateCardStatusBadge(chan) {
@@ -813,13 +1211,14 @@ function enqueueProbe(chan, priority) {
   runProbeQueue();
 }
 
-// ---------- Background sweep: classify every channel, not just visible ones ----------
-// Off channels are hidden from the grid, which breaks the old lazy model: a
-// hidden card never scrolls into view, so it would never be re-probed and could
-// never come back once it went OFF. Sweeping the whole list in the background
-// fixes that and is also what makes the channel counter honest — it can only
-// count "channels that are actually on" if every channel has been checked.
+// ---------- Background sweep: every channel, not just visible ones ----------
+// Off channels are hidden from the grid, which breaks a purely lazy model: a
+// hidden card never scrolls into view, so it could never be re-checked and
+// could never come back once it went OFF. Sweeping the whole list in the
+// background fixes that and is also what makes the channel counter honest — it
+// can only count channels that have been proven playable.
 function startStatusSweep() {
+  probeNativeBudget = 40;
   const pending = CHANNELS.filter((c) => c.liveStatus === "checking" && !c._queued);
   if (!pending.length) { updateScanProgress(); return; }
   // Pinned first, then the visitor's favourites, then the rest in list order —
@@ -849,7 +1248,7 @@ function updateScanProgress() {
   const fill = $("#scanProgressFill");
   if (fill) fill.style.width = Math.round((done / total) * 100) + "%";
   const text = $("#scanProgressText");
-  if (text) text.textContent = `চ্যানেল চেক করা হচ্ছে… ${done}/${total}`;
+  if (text) text.textContent = `চ্যানেল যাচাই করা হচ্ছে… ${done}/${total}`;
 }
 
 function onStatusResolved() {
@@ -857,9 +1256,9 @@ function onStatusResolved() {
   scheduleRelist();
 }
 
-// Every ~5 minutes, hand back to the sweep any channel whose cached status has
-// expired. A channel that has come back online flips to ON and un-hides itself
-// on its own; one that went down disappears. Skipped while the tab is in the
+// Every few minutes, hand back to the sweep any channel whose proof has
+// expired. A channel that comes back online flips to ON and un-hides itself on
+// its own; one that went down disappears. Skipped while the tab is in the
 // background so it never burns a visitor's data when nobody is looking.
 function startPeriodicRecheck() {
   setInterval(() => {
@@ -868,7 +1267,7 @@ function startPeriodicRecheck() {
     CHANNELS.forEach((c) => {
       if (c.isOff) return;                  // source says it's down — authoritative
       if (c.liveStatus === "checking" || c._queued) return;
-      if (getCachedStatus(c)) return;       // cached status still fresh
+      if (getCachedStatus(c)) return;       // cached proof still fresh
       c.liveStatus = "checking";
       revived++;
     });
@@ -1484,6 +1883,7 @@ function openPlayer(chan) {
 function closePlayer() {
   clearTimeout(cvStallTimer);
   clearTimeout(cvVideoCheckTimer);
+  playRequestToken++; // cancel a channel check that is still in flight
   destroyExistingPlayers();
   cvShowPoster();
   $("#videoError")?.remove();
@@ -1618,13 +2018,84 @@ function playChannel(ch) {
   }
 
   cvBuildServerListFromChannel(ch);
+  startChannelPlayback(ch);
+}
+
+// ── start playback: instant when the last proof is fresh, otherwise prove a
+// mirror works first so a dead stream can never open a broken player ──
+let playRequestToken = 0;
+
+async function startChannelPlayback(ch) {
+  if (!currentServerList.length) {
+    cvShowLoader(false);
+    cvShowVideoError();
+    return;
+  }
+  const token = ++playRequestToken;
+  const fresh = ch.verifiedUrl && ch.verifiedAt && Date.now() - ch.verifiedAt < PLAY_FRESH_MS;
+
+  if (fresh) {
+    cvPrioritizeSource(ch.verifiedUrl);
+    cvLoadStreamSource(currentServerList[0].url);
+    return;
+  }
+
+  // Never verified, or the proof is old: check the mirrors now, in parallel,
+  // with a hard time limit so nobody stares at a spinner. The previous
+  // channel is silenced first so a failed check cannot leave its audio
+  // playing behind the error message.
+  clearTimeout(cvStallTimer);
+  clearTimeout(cvVideoCheckTimer);
+  destroyExistingPlayers();
+  currentStreamUrl = null;
+  cvShowLoader(true);
+
+  const rawUrl = await probeChannelNow(ch);
+  if (token !== playRequestToken) return; // the visitor picked another channel
+
+  if (!rawUrl) {
+    cvShowLoader(false);
+    cvShowPoster();
+    markChannelDead(ch);
+    cvShowVideoError();
+    cvShowToast("⚠ এই চ্যানেলটি এই মুহূর্তে চলছে না");
+    return;
+  }
+
+  ch.liveStatus = "on";
+  ch.verifiedUrl = rawUrl;
+  ch.verifiedAt = Date.now();
+  setCachedStatus(ch, "on", rawUrl);
+  updateCardStatusBadge(ch);
+  cvPrioritizeSource(rawUrl);
   cvLoadStreamSource(currentServerList[0].url);
+}
+
+// Move the proven mirror to the front of the server list.
+function cvPrioritizeSource(rawUrl) {
+  if (!rawUrl) return;
+  const idx = currentServerList.findIndex((s) => realUrl(s.url) === rawUrl);
+  if (idx > 0) {
+    const [item] = currentServerList.splice(idx, 1);
+    currentServerList.unshift(item);
+    currentServerIndex = 0;
+    renderServerMenu();
+  }
 }
 
 // ── server list is the channel's own merged sources[], each routed through
 // our own proxy so protected CDNs (Referer/Origin-checked) still work ──
 function cvBuildServerListFromChannel(ch) {
-  currentServerList = ch.sources.map((url, i) => ({ name: `Server ${i + 1}`, url: playbackUrl(url) }));
+  // Start on the mirror that actually proved playable, not blindly on #1:
+  // before this, a channel could be verified through its third mirror while
+  // the player always opened the first (dead) one — the classic
+  // "shows ON but never loads" case.
+  const sources = ch.sources.slice();
+  if (ch.verifiedUrl) {
+    const verifiedIndex = sources.indexOf(ch.verifiedUrl);
+    if (verifiedIndex > 0) { sources.splice(verifiedIndex, 1); sources.unshift(ch.verifiedUrl); }
+  }
+  currentServerList = sources.map((url, i) => ({ name: `Server ${i + 1}`, url: playbackUrl(url) }));
   currentServerIndex = 0;
   renderServerMenu();
 }
@@ -1867,6 +2338,9 @@ function cvHandleStall(failedUrl) {
     cvShowLoader(false);
     cvShowPoster();
     cvShowToast("⚠ প্লে করা যাচ্ছে না");
+    // Every mirror failed to actually play: the badge was wrong, so fix it
+    // and stop offering this channel as if it worked.
+    markChannelDead(currentChannel);
     cvShowVideoError();
   }
 }
@@ -1885,7 +2359,12 @@ function cvShowVideoError() {
     </div>
   `;
   frame.appendChild(box);
-  $("#videoErrorRetry").addEventListener("click", () => { box.remove(); if (currentStreamUrl) cvLoadStreamSource(currentStreamUrl); });
+  $("#videoErrorRetry").addEventListener("click", () => {
+    box.remove();
+    const ch = currentChannel;
+    if (ch) { ch.verifiedAt = 0; playChannel(ch); } // force a fresh check
+    else if (currentStreamUrl) cvLoadStreamSource(currentStreamUrl);
+  });
   $("#videoErrorServers").addEventListener("click", () => { box.remove(); toggleServerMenu(); });
 }
 
@@ -2176,7 +2655,7 @@ function cvInitVideoEvents() {
   const frame = $("#cv-player-frame");
   if (!v) return;
   v.onplay = () => { cvUpdatePlayIcon(); cvShowLoader(false); cvHidePoster(); clearTimeout(cvStallTimer); };
-  v.onplaying = () => { cvShowLoader(false); cvHidePoster(); clearTimeout(cvStallTimer); };
+  v.onplaying = () => { cvShowLoader(false); cvHidePoster(); clearTimeout(cvStallTimer); cvConfirmPlayback(); };
   v.onpause = () => cvUpdatePlayIcon();
   v.onwaiting = () => cvShowLoader(true);
   v.oncanplay = () => { cvShowLoader(false); cvUpdateProgress(); };
@@ -2192,6 +2671,17 @@ function cvInitVideoEvents() {
       }
     });
   }
+}
+
+// The video element really produced playback — the strongest proof a stream
+// works, so upgrade the badge (and the cached result) on the spot. This keeps
+// the ON count honest in the direction the old checker never verified.
+function cvConfirmPlayback() {
+  const ch = currentChannel;
+  const raw = realUrl(currentStreamUrl || "");
+  if (!ch || !raw) return;
+  if (ch.liveStatus === "on" && ch.verifiedUrl === raw) return;
+  markChannelLive(ch, raw);
 }
 
 // ── global mouse/touch → show controls, then auto-hide ──
