@@ -113,16 +113,27 @@
             <div class="cv-float-chlist-body" id="cv-float-chlist-body"></div>
           </div>
 
-          <!-- Top-right overlay buttons -->
+          <!-- Top-right overlay: one settings button holds every extra control -->
           <div class="cv-topright-overlay" id="cv-topright-overlay">
-            <div class="cv-server-wrap">
-              <button class="cv-topright-btn" id="cv-server-btn" onclick="toggleServerMenu()" title="Switch Server"><i class="fa-solid fa-server"></i></button>
-              <div class="cv-server-dropdown" id="cv-server-dropdown">
-                <div class="cv-server-dropdown-header">Select Server</div>
-                <div id="cv-server-list"></div>
-              </div>
+            <button class="cv-topright-btn" id="cv-settings-btn" onclick="cvToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+          </div>
+
+          <!-- Settings menu: channel list, servers, quality, screenshot, PiP -->
+          <div class="cv-settings-menu" id="cv-settings-menu">
+            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> সেটিংস</div>
+            <button class="cv-settings-row" type="button" onclick="cvOpenChannelListFromSettings()"><i class="fa-solid fa-list"></i><span>চ্যানেল লিস্ট</span></button>
+            <div class="cv-settings-section">সার্ভার</div>
+            <div class="cv-settings-servers" id="cv-server-list"></div>
+            <div class="cv-settings-row cv-settings-row-select">
+              <i class="fa-solid fa-sliders"></i><span>কোয়ালিটি</span>
+              <select class="cv-quality-select" disabled="disabled" id="cv-quality-select" onchange="cvSetQuality(this.value)">
+                <option value="-1">Auto</option>
+              </select>
             </div>
-            <button class="cv-topright-btn" id="cv-chlist-btn" onclick="cvToggleChannelSidebar()" title="Channel List"><i class="fa-solid fa-list"></i></button>
+            <button class="cv-settings-row" type="button" onclick="cvTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>স্ক্রিনশট</span></button>
+            <button class="cv-settings-row" type="button" onclick="cvTogglePip()"><i class="fa-solid fa-clone"></i><span>পিকচার-ইন-পিকচার</span></button>
           </div>
 
           <!-- Loading ring -->
@@ -152,11 +163,6 @@
                 <input class="cv-vol-slider" id="cv-vol-slider" max="1" min="0" oninput="cvSetVolume(this.value)" step="0.05" type="range" value="1">
               </div>
               <div class="cv-spacer"></div>
-              <select class="cv-quality-select" disabled="disabled" id="cv-quality-select" onchange="cvSetQuality(this.value)">
-                <option value="-1">Auto</option>
-              </select>
-              <button class="cv-btn cv-btn-screenshot" onclick="cvTakeScreenshot()" title="Screenshot (S)"><i class="fa-solid fa-camera"></i></button>
-              <button class="cv-btn cv-btn-pip" onclick="cvTogglePip()" title="Picture in Picture (P)"><i class="fa-solid fa-clone"></i></button>
               <button class="cv-btn cv-btn-fs" onclick="cvToggleFullscreen()" title="Fullscreen (F)"><i class="fa-solid fa-expand" id="cv-fs-icon"></i></button>
             </div>
           </div>
@@ -173,19 +179,64 @@
         </div>
       </div>
 
-      <!-- ===== SPLIT VIEW — second channel (slot B) ===== -->
+      <!-- ===== SPLIT VIEW — second channel (slot B), same player UI as slot A ===== -->
       <div class="dp-player-main-card-wrapper split-shell hidden" id="splitShell">
-        <div class="split-frame" id="splitFrame">
+        <div class="dp-player-aspect-frame split-frame" id="splitFrame">
           <video id="splitVideoNode" playsinline="playsinline" muted="muted"></video>
+
           <div class="cv-loading-ring" id="splitLoader"></div>
-          <div class="split-topright-overlay">
-            <button class="cv-topright-btn" id="splitMuteBtn" onclick="toggleSplitMute()" title="Unmute"><i class="fa-solid fa-volume-xmark"></i></button>
-            <button class="cv-topright-btn" onclick="closeSplitChannel()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+          <div class="cv-key-toast" id="sp-toast"></div>
+
+          <div class="cv-topright-overlay">
+            <button class="cv-topright-btn" id="sp-settings-btn" onclick="spToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <button class="cv-topright-btn" onclick="closeSplitChannel()" title="স্লট বন্ধ করুন"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div class="cv-settings-menu" id="sp-settings-menu">
+            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> সেটিংস</div>
+            <div class="cv-settings-row cv-settings-row-select">
+              <i class="fa-solid fa-tv"></i><span>চ্যানেল</span>
+              <select class="cv-settings-select" id="sp-channel-select" onchange="spChangeChannel(this.value)"></select>
+            </div>
+            <div class="cv-settings-section">সার্ভার</div>
+            <div class="cv-settings-servers" id="sp-server-list"></div>
+            <button class="cv-settings-row" type="button" onclick="spTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>স্ক্রিনশট</span></button>
+            <button class="cv-settings-row" type="button" onclick="spTogglePip()"><i class="fa-solid fa-clone"></i><span>পিকচার-ইন-পিকচার</span></button>
+          </div>
+
+          <div class="cv-controls" id="sp-controls">
+            <div class="cv-time-row">
+              <span class="cv-elapsed" id="sp-elapsed">0:00</span>
+              <span class="cv-duration" id="sp-duration">LIVE</span>
+            </div>
+            <div class="cv-progress-wrap" id="sp-progress-wrap" onmousedown="spSeekStart(event)" onmousemove="spSeekPreview(event)" onmouseup="spSeekEnd(event)" ontouchend="spSeekEnd(event)" ontouchstart="spSeekStart(event)">
+              <div class="cv-progress-live" id="sp-progress-live" style="display:none;"></div>
+              <div class="cv-progress-buffer" id="sp-progress-buffer"></div>
+              <div class="cv-progress-fill" id="sp-progress-fill"></div>
+              <div class="cv-progress-thumb" id="sp-progress-thumb"></div>
+            </div>
+            <div class="cv-controls-row">
+              <button class="cv-btn" id="sp-prev-btn" onclick="spPlayPrev()" title="Previous"><i class="fa-solid fa-backward-step"></i></button>
+              <button class="cv-btn" id="sp-play-btn" onclick="spTogglePlay()" title="Play/Pause"><i class="fa-solid fa-play" id="sp-play-icon"></i></button>
+              <button class="cv-btn" id="sp-next-btn" onclick="spPlayNext()" title="Next"><i class="fa-solid fa-forward-step"></i></button>
+              <div class="cv-vol-wrap">
+                <button class="cv-btn" id="sp-mute-btn" onclick="spToggleMute()" title="Mute"><i class="fa-solid fa-volume-xmark" id="sp-vol-icon"></i></button>
+                <input class="cv-vol-slider" id="sp-vol-slider" max="1" min="0" oninput="spSetVolume(this.value)" step="0.05" type="range" value="1">
+              </div>
+              <div class="cv-spacer"></div>
+              <button class="cv-btn cv-btn-fs" onclick="spToggleFullscreen()" title="Fullscreen"><i class="fa-solid fa-expand" id="sp-fs-icon"></i></button>
+            </div>
           </div>
         </div>
         <div class="dp-player-meta-info-block split-meta">
+          <div class="dp-meta-channel-logo" id="sp-logo-frame">
+            <i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>
+          </div>
           <div class="dp-meta-text-details">
             <h3 class="dp-meta-channel-name" id="splitChannelTitle">—</h3>
+            <p class="dp-meta-status-text" id="sp-channel-status">—</p>
           </div>
         </div>
       </div>
