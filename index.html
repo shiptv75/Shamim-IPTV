@@ -289,6 +289,50 @@
   <section id="toolsPage" class="tools-page">
     <div class="tools-wrap">
 
+      <!-- ===== ADMIN PLAYLIST PLAYER (opens when an admin playlist is chosen) ===== -->
+      <section id="adminPlayerSection" class="tools-card admin-player-card hidden">
+        <div class="admin-player-head">
+          <span id="adminPlaylistName">Admin Playlist</span>
+          <button id="adminPlayerClose" class="pl-store-btn del" type="button" title="বন্ধ করুন"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="admin-player-body">
+          <div class="admin-player-col" id="adminPlayerCol">
+            <div class="dp-player-aspect-frame controls-visible" id="adminFrame">
+              <video id="adminVideoNode" playsinline="playsinline" muted="muted"></video>
+              <div class="cv-loading-ring" id="adminLoader"></div>
+              <div class="cv-controls" id="adminControls">
+                <div class="cv-controls-row">
+                  <button class="cv-btn" id="adminPlayBtn" onclick="adminTogglePlay()" title="Play/Pause"><i class="fa-solid fa-play" id="adminPlayIcon"></i></button>
+                  <div class="cv-vol-wrap">
+                    <button class="cv-btn" id="adminMuteBtn" onclick="adminToggleMute()" title="Mute"><i class="fa-solid fa-volume-high" id="adminVolIcon"></i></button>
+                    <input class="cv-vol-slider" id="adminVolSlider" max="1" min="0" step="0.05" value="1" oninput="adminSetVolume(this.value)" type="range">
+                  </div>
+                  <div class="cv-spacer"></div>
+                  <button class="cv-btn cv-btn-fs" onclick="adminToggleFullscreen()" title="Fullscreen"><i class="fa-solid fa-expand" id="adminFsIcon"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="dp-player-meta-info-block">
+              <div class="dp-meta-channel-logo" id="adminLogoFrame">
+                <i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>
+              </div>
+              <div class="dp-meta-text-details">
+                <h3 class="dp-meta-channel-name" id="adminChannelTitle">Select a Channel</h3>
+                <p class="dp-meta-status-text" id="adminChannelStatus">—</p>
+              </div>
+            </div>
+          </div>
+          <aside class="admin-chlist">
+            <div class="admin-chlist-head"><i class="fa-solid fa-satellite-dish"></i> Channels <span id="adminChCount" class="cs-count"></span></div>
+            <div class="admin-chlist-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="adminSearch" oninput="adminRenderChannels(this.value)" placeholder="Search channels…" type="text">
+            </div>
+            <div class="admin-chlist-body" id="adminChList"></div>
+          </aside>
+        </div>
+      </section>
+
       <!-- My Saved Playlists -->
       <div class="tools-card">
         <div class="tools-card-head"><i class="fa-solid fa-bookmark"></i> My Saved Playlists</div>
@@ -299,6 +343,15 @@
             <button id="plStoreAdd" class="btn-solid" type="button"><i class="fa-solid fa-plus"></i> Add</button>
           </div>
           <div id="plStoreList" class="pl-store-list"></div>
+        </div>
+      </div>
+
+
+      <!-- Admin Playlists (configured in app.js → ADMIN_PLAYLISTS) -->
+      <div class="tools-card">
+        <div class="tools-card-head"><i class="fa-solid fa-shield-halved"></i> Admin Playlists</div>
+        <div class="tools-card-body">
+          <div id="adminPlaylistList" class="pl-store-list"></div>
         </div>
       </div>
 
@@ -357,6 +410,43 @@
         </div>
       </div>
 
+
+      <!-- Duplicate / Unique channel checker -->
+      <div class="tools-card">
+        <div class="tools-card-head"><i class="fa-solid fa-code-compare"></i> Duplicate / Unique Checker</div>
+        <div class="tools-card-body">
+          <div class="cmp-grid">
+            <div class="chk-col">
+              <label class="chk-label"><i class="fa-solid fa-1"></i> Playlist A — URL or paste</label>
+              <input id="cmpUrlA" class="tools-input" type="text" placeholder="https://example.com/a.m3u" autocomplete="off">
+              <textarea id="cmpTextA" class="tools-input chk-bulk" placeholder="…অথবা M3U টেক্সট পেস্ট করুন"></textarea>
+            </div>
+            <div class="chk-col">
+              <label class="chk-label"><i class="fa-solid fa-2"></i> Playlist B — URL or paste</label>
+              <input id="cmpUrlB" class="tools-input" type="text" placeholder="https://example.com/b.m3u" autocomplete="off">
+              <textarea id="cmpTextB" class="tools-input chk-bulk" placeholder="…অথবা M3U টেক্সট পেস্ট করুন"></textarea>
+            </div>
+          </div>
+          <div class="chk-btn-row" style="margin-top:12px;">
+            <button id="cmpRunBtn" class="btn-solid" type="button"><i class="fa-solid fa-magnifying-glass-chart"></i> Compare</button>
+            <button id="cmpClearBtn" class="btn-outline" type="button"><i class="fa-solid fa-xmark"></i> Clear</button>
+            <span id="cmpStatus" class="chk-status"></span>
+          </div>
+          <div id="cmpResults" class="cmp-results hidden">
+            <div class="cmp-summary" id="cmpSummary"></div>
+            <div class="cmp-tabs" id="cmpTabs">
+              <button class="chk-tab active" data-set="both" type="button">Common <span class="chk-tab-n" id="cmpNBoth">0</span></button>
+              <button class="chk-tab" data-set="a" type="button">Only in A <span class="chk-tab-n" id="cmpNA">0</span></button>
+              <button class="chk-tab" data-set="b" type="button">Only in B <span class="chk-tab-n" id="cmpNB">0</span></button>
+            </div>
+            <div class="cmp-actions">
+              <button class="chk-tool-btn" id="cmpCopy" type="button"><i class="fa-regular fa-copy"></i> Copy names</button>
+              <button class="chk-tool-btn save" id="cmpExport" type="button"><i class="fa-solid fa-file-arrow-down"></i> Export M3U</button>
+            </div>
+            <div id="cmpList" class="chk-list"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
