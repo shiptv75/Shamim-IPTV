@@ -1900,49 +1900,141 @@ function destroySplitPlayers() {
   if (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch {} }
 }
 
+// ---------- Split view (second channel slot) ----------
+// Slot B now carries the same chrome as slot A: poster-free video frame, gear
+// settings menu, full control bar (progress, play/pause, volume, fullscreen)
+// and a metadata strip with the channel logo. It keeps its own small engine
+// and state so the two slots never interfere with each other.
+let spUserVolume = 1;
+let spUserMuted = true;
+let spControlsTimer = null;
+let spIsSeeking = false;
+let spSeekFrac = 0;
+
+function destroySplitPlayers() {
+  if (splitHlsInstance) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; }
+  if (splitMpegtsInstance) { try { splitMpegtsInstance.destroy(); } catch {} splitMpegtsInstance = null; }
+  const v = $("#splitVideoNode");
+  if (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch {} }
+}
+
+function spVideoEl() { return $("#splitVideoNode"); }
+
+function spShowToast(msg) {
+  const t = $("#sp-toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(spShowToast._t);
+  spShowToast._t = setTimeout(() => t.classList.remove("show"), 1200);
+}
+
+function spSyncPlayIcon() {
+  const v = spVideoEl();
+  const icon = $("#sp-play-icon");
+  if (v && icon) icon.className = "fa-solid " + (v.paused ? "fa-play" : "fa-pause");
+}
+
+function spSyncMute() {
+  const v = spVideoEl();
+  if (!v) return;
+  const icon = $("#sp-vol-icon");
+  const slider = $("#sp-vol-slider");
+  if (slider) slider.value = v.muted ? 0 : v.volume;
+  if (!icon) return;
+  if (v.muted || v.volume === 0) icon.className = "fa-solid fa-volume-xmark";
+  else if (v.volume < 0.4) icon.className = "fa-solid fa-volume-off";
+  else if (v.volume < 0.7) icon.className = "fa-solid fa-volume-low";
+  else icon.className = "fa-solid fa-volume-high";
+}
+
+function spRevealControls() {
+  const frame = $("#splitFrame");
+  if (!frame) return;
+  frame.classList.add("controls-visible");
+  clearTimeout(spControlsTimer);
+  spControlsTimer = setTimeout(() => frame.classList.remove("controls-visible"), 2500);
+}
+
 function openSplitChannel(chan) {
-  if (!chan.sources || !chan.sources.length) { toast("এই চ্যানেলের কোনো সোর্স নেই"); return; }
+  if (!chan || !chan.sources || !chan.sources.length) { toast("এই চ্যানেলের কোনো সোর্স নেই"); return; }
 
   splitChannel = chan;
   splitServerIndex = 0;
+  spUserMuted = true; // every new second channel starts muted, as before
   $("#playerSplitWrap")?.classList.add("split-active");
   $("#splitShell")?.classList.remove("hidden");
-  $("#splitChannelTitle").textContent = chan.name;
 
-  const video = $("#splitVideoNode");
-  if (video) {
-    video.muted = true; // starts muted by design — tap the speaker icon to unmute
-    $("#splitMuteBtn i")?.classList.remove("fa-volume-high");
-    $("#splitMuteBtn i")?.classList.add("fa-volume-xmark");
+  const title = $("#splitChannelTitle");
+  if (title) title.textContent = chan.name;
+
+  const statusEl = $("#sp-channel-status");
+  if (statusEl) {
+    const tags = chan.sourceTags && chan.sourceTags.size ? [...chan.sourceTags].join(", ") : "—";
+    statusEl.textContent = "Category: " + (chan.group || "—") + " · Source: " + tags;
   }
 
+  const logo = $("#sp-logo-frame");
+  if (logo) {
+    logo.innerHTML = chan.logo
+      ? `<img src="${chan.logo}" style="max-width:100%;max-height:100%;object-fit:contain;" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+      : `<i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>`;
+  }
+
+  const video = spVideoEl();
+  if (video) {
+    video.volume = spUserVolume;
+    video.muted = spUserMuted;
+    // one set of handlers for the element's whole lifetime — the source
+    // switcher below only swaps engines, never re-binds these
+    video.onplay = () => spSyncPlayIcon();
+    video.onpause = () => spSyncPlayIcon();
+    video.onplaying = () => { $("#splitLoader")?.classList.remove("active"); spSyncPlayIcon(); };
+    video.onwaiting = () => $("#splitLoader")?.classList.add("active");
+    video.oncanplay = () => { $("#splitLoader")?.classList.remove("active"); spUpdateProgress(); };
+    video.ontimeupdate = spUpdateProgress;
+    video.ondurationchange = spUpdateProgress;
+    video.onerror = () => $("#splitLoader")?.classList.remove("active");
+  }
+
+  spSyncPlayIcon();
+  spSyncMute();
+  spUpdateProgress();
+  spRevealControls();
   splitLoadServer(0);
 }
 
 // Tries chan.sources[index]; if it hasn't actually started playing within 9s,
 // automatically moves on to the next source — mirroring the main player's
-// stall watchdog. Without this, a channel only ever got one shot at its
-// first source and sat on a black screen if that particular one was down,
-// even when a later source for the same channel worked fine.
+// stall watchdog.
 function splitLoadServer(index) {
   const chan = splitChannel;
   if (!chan || !chan.sources[index]) {
     $("#splitLoader")?.classList.remove("active");
+    const statusEl = $("#sp-channel-status");
+    if (statusEl) statusEl.textContent = "কোনো সার্ভার পাওয়া যাচ্ছে না";
     toast(`${chan ? chan.name : "চ্যানেল"} — কোনো সার্ভার থেকেই চালু করা যাচ্ছে না`);
     return;
   }
 
   splitServerIndex = index;
   const url = playbackUrl(chan.sources[index]);
-  const video = $("#splitVideoNode");
-  const loader = $("#splitLoader");
+  const video = spVideoEl();
   if (!video) return;
 
   destroySplitPlayers();
-  loader?.classList.add("active");
+  $("#splitLoader")?.classList.add("active");
+  spRenderSplitServers();
 
-  const hideLoader = () => loader?.classList.remove("active");
-  const tryNative = () => { video.src = url; video.play().catch(() => {}); };
+  const statusEl = $("#sp-channel-status");
+  if (statusEl) statusEl.textContent = `Server ${index + 1} / ${chan.sources.length}`;
+
+  const tryNative = () => {
+    video.src = url;
+    video.volume = spUserVolume;
+    video.muted = spUserMuted;
+    video.play().catch(() => {});
+  };
 
   const tryMpegts = () => {
     if (typeof mpegts === "undefined" || !mpegts.isSupported()) { tryNative(); return; }
@@ -1956,7 +2048,7 @@ function splitLoadServer(index) {
   };
 
   const tryHls = () => {
-    if (window.Hls && Hls.isSupported() && /\.m3u8(\?.*)?$/i.test(url)) {
+    if (window.Hls && Hls.isSupported()) {
       splitHlsInstance = new Hls();
       splitHlsInstance.loadSource(url);
       splitHlsInstance.attachMedia(video);
@@ -1970,9 +2062,6 @@ function splitLoadServer(index) {
   if (isTsStream(url)) tryMpegts();
   else tryHls();
 
-  video.onplaying = hideLoader;
-  video.onerror = hideLoader;
-
   clearTimeout(splitStallTimer);
   splitStallTimer = setTimeout(() => {
     if (splitChannel !== chan || splitServerIndex !== index) return; // superseded already
@@ -1981,21 +2070,211 @@ function splitLoadServer(index) {
   }, 9000);
 }
 
-function closeSplitChannel() {
-  clearTimeout(splitStallTimer);
-  destroySplitPlayers();
-  splitChannel = null;
-  $("#splitShell")?.classList.add("hidden");
-  $("#playerSplitWrap")?.classList.remove("split-active");
+function spRenderSplitServers() {
+  const list = $("#sp-server-list");
+  if (!list) return;
+  if (!splitChannel || !splitChannel.sources.length) { list.innerHTML = ""; return; }
+  list.innerHTML = splitChannel.sources
+    .map((_, i) => `<button class="cv-server-item${i === splitServerIndex ? " active" : ""}" type="button" data-i="${i}"><span class="cv-server-dot"></span>Server ${i + 1}</button>`)
+    .join("");
+  list.querySelectorAll(".cv-server-item").forEach((btn) => {
+    btn.addEventListener("click", () => splitLoadServer(Number(btn.dataset.i)));
+  });
 }
 
-function toggleSplitMute() {
-  const video = $("#splitVideoNode");
-  const icon = $("#splitMuteBtn i");
-  if (!video) return;
-  video.muted = !video.muted;
-  icon?.classList.toggle("fa-volume-xmark", video.muted);
-  icon?.classList.toggle("fa-volume-high", !video.muted);
+function spBuildSettings() {
+  spRenderSplitServers();
+  const sel = $("#sp-channel-select");
+  if (!sel) return;
+  sel.innerHTML = "";
+  const currentId = splitChannel ? splitChannel.id : "";
+  visibleChannels().forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    if (c.id === currentId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function spToggleSettings(e) {
+  if (e) e.stopPropagation();
+  const menu = $("#sp-settings-menu");
+  if (!menu) return;
+  const open = !menu.classList.contains("open");
+  if (open) spBuildSettings();
+  menu.classList.toggle("open", open);
+  $("#sp-settings-btn")?.setAttribute("aria-expanded", String(open));
+}
+function spCloseSettings() {
+  $("#sp-settings-menu")?.classList.remove("open");
+  $("#sp-settings-btn")?.setAttribute("aria-expanded", "false");
+}
+
+function spChangeChannel(id) {
+  const chan = CHANNELS.find((c) => c.id === id);
+  if (!chan) return;
+  spCloseSettings();
+  openSplitChannel(chan);
+}
+
+function spTogglePlay() {
+  const v = spVideoEl();
+  if (!v) return;
+  if (v.paused) { v.play().catch(() => {}); spShowToast("▶ Play"); }
+  else { v.pause(); spShowToast("⏸ Pause"); }
+  spSyncPlayIcon();
+}
+
+// Same prev/next cycling as slot A, but over slot B's own channel.
+function spStepChannel(dir) {
+  const list = visibleChannels();
+  if (!list.length) return null;
+  let idx = splitChannel ? list.findIndex((c) => c.id === splitChannel.id) : -1;
+  if (idx === -1) idx = dir > 0 ? -1 : 0;
+  return list[(idx + dir + list.length) % list.length] || null;
+}
+function spPlayNext() {
+  const ch = spStepChannel(1);
+  if (!ch) return;
+  spShowToast("⏭ " + ch.name);
+  openSplitChannel(ch);
+}
+function spPlayPrev() {
+  const ch = spStepChannel(-1);
+  if (!ch) return;
+  spShowToast("⏮ " + ch.name);
+  openSplitChannel(ch);
+}
+
+function spToggleMute() {
+  const v = spVideoEl();
+  if (!v) return;
+  v.muted = !v.muted;
+  spUserMuted = v.muted;
+  spSyncMute();
+  spShowToast(v.muted ? "🔇 Muted" : "🔊 Unmuted");
+}
+
+function spSetVolume(val) {
+  const v = spVideoEl();
+  if (!v) return;
+  const x = parseFloat(val);
+  v.volume = x;
+  v.muted = x === 0;
+  spUserMuted = v.muted;
+  if (x > 0) spUserVolume = x;
+  spSyncMute();
+}
+
+function spToggleFullscreen() {
+  const frame = $("#splitFrame");
+  const icon = $("#sp-fs-icon");
+  if (!frame) return;
+  if (!document.fullscreenElement) {
+    frame.requestFullscreen?.().catch(() => {});
+    if (icon) icon.className = "fa-solid fa-compress";
+    spShowToast("⛶ Fullscreen");
+  } else {
+    document.exitFullscreen?.();
+    if (icon) icon.className = "fa-solid fa-expand";
+    spShowToast("↙ Exit Fullscreen");
+  }
+}
+
+function spTogglePip() {
+  const v = spVideoEl();
+  if (!v) return;
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+  else if (document.pictureInPictureEnabled) v.requestPictureInPicture().catch(() => {});
+  else spShowToast("এই ব্রাউজারে PiP সাপোর্ট নেই");
+}
+
+function spTakeScreenshot() {
+  const v = spVideoEl();
+  if (!v) return;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth || 1280;
+    canvas.height = v.videoHeight || 720;
+    canvas.getContext("2d").drawImage(v, 0, 0, canvas.width, canvas.height);
+    const link = document.createElement("a");
+    link.download = "screenshot-slot-b-" + Date.now() + ".png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    spShowToast("📸 Screenshot saved!");
+  } catch { spShowToast("⚠ Screenshot failed (CORS)"); }
+}
+
+function spSeekFraction(e) {
+  const bar = $("#sp-progress-wrap");
+  if (!bar) return 0;
+  const point = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  const rect = bar.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (point.clientX - rect.left) / rect.width));
+}
+function spApplySeek(frac) {
+  const fill = $("#sp-progress-fill");
+  const thumb = $("#sp-progress-thumb");
+  if (fill) fill.style.width = frac * 100 + "%";
+  if (thumb) thumb.style.left = frac * 100 + "%";
+}
+function spSeekStart(e) {
+  const v = spVideoEl();
+  if (!v || !v.duration || !isFinite(v.duration)) return;
+  spIsSeeking = true;
+  spSeekFrac = spSeekFraction(e);
+  spApplySeek(spSeekFrac);
+}
+function spSeekPreview(e) {
+  if (!spIsSeeking) return;
+  spSeekFrac = spSeekFraction(e);
+  spApplySeek(spSeekFrac);
+}
+function spSeekEnd() {
+  const v = spVideoEl();
+  if (!spIsSeeking) return;
+  spIsSeeking = false;
+  if (v && v.duration && isFinite(v.duration)) v.currentTime = spSeekFrac * v.duration;
+  spUpdateProgress();
+}
+
+function spUpdateProgress() {
+  const v = spVideoEl();
+  if (!v || spIsSeeking) return;
+  const fill = $("#sp-progress-fill"), thumb = $("#sp-progress-thumb"), buf = $("#sp-progress-buffer");
+  const elapsed = $("#sp-elapsed"), durText = $("#sp-duration"), liveBar = $("#sp-progress-live");
+  const dur = v.duration;
+  const isLive = !isFinite(dur) || dur === Infinity;
+  if (elapsed) elapsed.textContent = cvFmtTime(v.currentTime);
+  if (isLive) {
+    if (liveBar) liveBar.style.display = "block";
+    if (fill) fill.style.width = "0%";
+    if (thumb) thumb.style.left = "0%";
+    if (buf) buf.style.width = "0%";
+    if (durText) durText.textContent = "LIVE";
+  } else {
+    if (liveBar) liveBar.style.display = "none";
+    const frac = dur > 0 ? v.currentTime / dur : 0;
+    if (fill) fill.style.width = frac * 100 + "%";
+    if (thumb) thumb.style.left = frac * 100 + "%";
+    if (durText) durText.textContent = cvFmtTime(dur);
+    try {
+      if (v.buffered && v.buffered.length > 0 && buf) buf.style.width = (v.buffered.end(v.buffered.length - 1) / dur) * 100 + "%";
+    } catch {}
+  }
+}
+
+function closeSplitChannel() {
+  clearTimeout(splitStallTimer);
+  clearTimeout(spControlsTimer);
+  destroySplitPlayers();
+  splitChannel = null;
+  spIsSeeking = false;
+  spCloseSettings();
+  $("#splitShell")?.classList.add("hidden");
+  $("#playerSplitWrap")?.classList.remove("split-active");
+  $("#splitFrame")?.classList.remove("controls-visible");
 }
 
 // ── same channel selected from grid/float-list/prev-next ──
@@ -2126,14 +2405,50 @@ function cvSwitchServer(idx) {
   closeServerMenu();
 }
 
-function toggleServerMenu() { $("#cv-server-dropdown")?.classList.toggle("open"); }
-function closeServerMenu() { $("#cv-server-dropdown")?.classList.remove("open"); }
+// ── settings menu (everything that used to be a separate right-side icon) ──
+function cvToggleSettings(e) {
+  if (e) e.stopPropagation();
+  const menu = $("#cv-settings-menu");
+  if (!menu) return;
+  const open = !menu.classList.contains("open");
+  menu.classList.toggle("open", open);
+  $("#cv-settings-btn")?.setAttribute("aria-expanded", String(open));
+}
+function cvOpenSettings() {
+  $("#cv-settings-menu")?.classList.add("open");
+  $("#cv-settings-btn")?.setAttribute("aria-expanded", "true");
+}
+function cvCloseSettings() {
+  $("#cv-settings-menu")?.classList.remove("open");
+  $("#cv-settings-btn")?.setAttribute("aria-expanded", "false");
+}
+// Opens the floating channel list from the settings menu (menu closes first so
+// the two overlays never sit on top of each other).
+function cvOpenChannelListFromSettings() {
+  cvCloseSettings();
+  cvOpenFloatChList();
+}
+
+// Legacy entry points — the old server dropdown is part of the settings menu now.
+function toggleServerMenu() { cvToggleSettings(); }
+function closeServerMenu() { cvCloseSettings(); }
+
 document.addEventListener("click", (e) => {
-  const dd = $("#cv-server-dropdown");
-  const btn = $("#cv-server-btn");
-  if (dd && dd.classList.contains("open") && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-    closeServerMenu();
+  const menu = $("#cv-settings-menu");
+  const btn = $("#cv-settings-btn");
+  if (menu && menu.classList.contains("open") && !menu.contains(e.target) && !(btn && btn.contains(e.target))) {
+    cvCloseSettings();
   }
+  const spMenu = $("#sp-settings-menu");
+  const spBtn = $("#sp-settings-btn");
+  if (spMenu && spMenu.classList.contains("open") && !spMenu.contains(e.target) && !(spBtn && spBtn.contains(e.target))) {
+    spCloseSettings();
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  cvCloseSettings();
+  spCloseSettings();
 });
 
 // ── TS vs HLS detection heuristic ──
@@ -2365,7 +2680,7 @@ function cvShowVideoError() {
     if (ch) { ch.verifiedAt = 0; playChannel(ch); } // force a fresh check
     else if (currentStreamUrl) cvLoadStreamSource(currentStreamUrl);
   });
-  $("#videoErrorServers").addEventListener("click", () => { box.remove(); toggleServerMenu(); });
+  $("#videoErrorServers").addEventListener("click", () => { box.remove(); cvOpenSettings(); });
 }
 
 // ── called when audio has been playing for a while but no picture ever
@@ -2702,7 +3017,7 @@ document.addEventListener("touchstart", () => {
 document.addEventListener("dblclick", (e) => {
   const frame = $("#cv-player-frame");
   if (!frame || !frame.contains(e.target)) return;
-  if (e.target.closest(".cv-controls-row") || e.target.closest(".cv-progress-wrap") || e.target.closest(".cv-topright-overlay")) return;
+  if (e.target.closest(".cv-controls-row") || e.target.closest(".cv-progress-wrap") || e.target.closest(".cv-topright-overlay") || e.target.closest(".cv-settings-menu")) return;
   cvToggleFullscreen();
 });
 
@@ -2713,6 +3028,7 @@ function cvToggleChannelSidebar() {
   panel.classList.contains("open") ? cvCloseFloatChList() : cvOpenFloatChList();
 }
 function cvOpenFloatChList() {
+  cvCloseSettings();
   const panel = $("#cv-float-chlist");
   const btn = $("#cv-chlist-btn");
   if (!panel) return;
@@ -2847,7 +3163,15 @@ async function initVisitorCounter() {
 }
 
 function setupPlayerControls() {
-  // (no-op: player is now a persistent pane, not a closable modal)
+  // Slot A already reveals its controls from the global mouse/touch listeners;
+  // slot B lives in a separate frame, so it needs its own.
+  const splitFrame = $("#splitFrame");
+  if (splitFrame && !splitFrame._spHoverBound) {
+    splitFrame._spHoverBound = true;
+    splitFrame.addEventListener("mousemove", spRevealControls);
+    splitFrame.addEventListener("mousedown", spRevealControls);
+    splitFrame.addEventListener("touchstart", spRevealControls, { passive: true });
+  }
 }
 
 // ---------- INIT ----------
