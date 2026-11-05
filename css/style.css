@@ -1152,3 +1152,59 @@ html[data-theme="light"] .chk-badge.dead{ color:#b91c1c; background: rgba(220,38
   .topbar-right .server-filter-btn,
   .topbar-right .off-toggle-btn{ padding:7px 7px; }
 }
+
+/* ============================================================
+   PLAYER SETTINGS MENU
+   One gear button (top-right) now holds every secondary control:
+   channel list, servers, quality, screenshot and Picture-in-Picture.
+   Only fullscreen stays in the control bar, so the player keeps a
+   single, uncluttered button on each side.
+   ============================================================ */
+.cv-settings-menu{
+  display:none; position:absolute; top:58px; right:12px; z-index:24;
+  width:236px; max-width:calc(100% - 20px);
+  max-height:calc(100% - 70px); overflow-y:auto;
+  background: rgba(8,14,26,.97);
+  border:1px solid rgba(0,201,122,.35);
+  border-radius:12px; padding:6px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px rgba(0,0,0,.55);
+}
+.cv-settings-menu.open{ display:block; }
+.cv-settings-head{
+  display:flex; align-items:center; gap:8px;
+  padding:7px 9px 9px; margin-bottom:4px;
+  font-size:10.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase;
+  color: rgba(255,255,255,.5);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.cv-settings-head i{ color:#00d984; }
+.cv-settings-section{
+  padding:8px 9px 3px; font-size:9.5px; font-weight:800; letter-spacing:.8px;
+  text-transform:uppercase; color: rgba(255,255,255,.38);
+}
+.cv-settings-row{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:9px; border-radius:8px; border:none; background:none;
+  font-family: inherit; font-size:12.5px; font-weight:600; color:#e2e8f0;
+  text-align:left; cursor:pointer;
+}
+.cv-settings-row:hover{ background: rgba(0,201,122,.14); }
+.cv-settings-row i:first-child{ width:16px; text-align:center; color:#00b140; flex-shrink:0; }
+.cv-settings-row span{ flex:1; min-width:0; }
+.cv-settings-row-select{ cursor:default; }
+.cv-settings-row-select:hover{ background: rgba(255,255,255,.04); }
+.cv-settings-select{
+  flex:0 0 104px; max-width:104px;
+  background: rgba(0,201,122,.12); border:1px solid rgba(0,201,122,.35);
+  color:#c7f5df; font-size:11px; border-radius:7px; padding:4px 6px; outline:none;
+}
+.cv-settings-select option{ background:#0d1726; color:#fff; }
+.cv-settings-servers{
+  max-height:126px; overflow-y:auto; padding:0 0 4px;
+}
+.cv-settings-servers .cv-server-item{ width:100%; text-align:left; font-family: inherit; }
+
+@media (max-width: 860px){
+  .cv-settings-menu{ top:52px; right:8px; width:220px; }
+}
