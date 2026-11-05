@@ -1970,8 +1970,8 @@ function openSplitChannel(chan) {
 
   const statusEl = $("#sp-channel-status");
   if (statusEl) {
-    const tags = chan.sourceTags && chan.sourceTags.size ? [...chan.sourceTags].join(", ") : "—";
-    statusEl.textContent = "Category: " + (chan.group || "—") + " · Source: " + tags;
+    const sourceList = chan.sourceTags && chan.sourceTags.size ? [...chan.sourceTags].join(", ") : "—";
+    statusEl.innerHTML = "▶ Category: <strong>" + (chan.group || "—") + "</strong> &nbsp;·&nbsp; Source: <strong>" + sourceList + "</strong>";
   }
 
   const logo = $("#sp-logo-frame");
@@ -2024,10 +2024,9 @@ function splitLoadServer(index) {
 
   destroySplitPlayers();
   $("#splitLoader")?.classList.add("active");
+  const qsel = $("#sp-quality-select");
+  if (qsel) { qsel.innerHTML = '<option value="-1">Auto</option>'; qsel.disabled = true; }
   spRenderSplitServers();
-
-  const statusEl = $("#sp-channel-status");
-  if (statusEl) statusEl.textContent = `Server ${index + 1} / ${chan.sources.length}`;
 
   const tryNative = () => {
     video.src = url;
@@ -2048,15 +2047,39 @@ function splitLoadServer(index) {
   };
 
   const tryHls = () => {
-    if (window.Hls && Hls.isSupported()) {
-      splitHlsInstance = new Hls();
-      splitHlsInstance.loadSource(url);
-      splitHlsInstance.attachMedia(video);
-      splitHlsInstance.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; tryNative(); } });
-      video.play().catch(() => {});
-    } else {
-      tryNative();
-    }
+    if (!(window.Hls && Hls.isSupported())) { tryNative(); return; }
+    splitHlsInstance = new Hls({
+      maxBufferLength: 10, maxMaxBufferLength: 30, maxBufferSize: 30 * 1000 * 1000,
+      enableWorker: true, lowLatencyMode: true, startLevel: -1,
+      manifestLoadingTimeOut: 10000, manifestLoadingMaxRetry: 2,
+      levelLoadingTimeOut: 8000, fragLoadingTimeOut: 10000,
+      xhrSetup: (xhr) => { xhr.withCredentials = false; },
+    });
+    splitHlsInstance.loadSource(url);
+    splitHlsInstance.attachMedia(video);
+    // slot A has a quality picker, so slot B gets one too — same source of truth
+    splitHlsInstance.on(Hls.Events.MANIFEST_PARSED, (evt, data) => {
+      const sel = $("#sp-quality-select");
+      if (!sel) return;
+      const levels = (data && data.levels) || [];
+      sel.innerHTML = '<option value="-1">Auto</option>';
+      levels.forEach((lvl, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = lvl.height ? lvl.height + "p" : "Level " + (i + 1);
+        sel.appendChild(opt);
+      });
+      sel.disabled = levels.length <= 1;
+    });
+    splitHlsInstance.on(Hls.Events.LEVEL_SWITCHED, (evt, data) => {
+      const sel = $("#sp-quality-select");
+      if (!sel || sel.value !== "-1" || !splitHlsInstance) return;
+      const lvl = splitHlsInstance.levels[data.level];
+      const autoOpt = sel.querySelector('option[value="-1"]');
+      if (autoOpt && lvl) autoOpt.textContent = "Auto (" + (lvl.height ? lvl.height + "p" : "…") + ")";
+    });
+    splitHlsInstance.on(Hls.Events.ERROR, (evt, data) => { if (data.fatal) { try { splitHlsInstance.destroy(); } catch {} splitHlsInstance = null; tryNative(); } });
+    video.play().catch(() => {});
   };
 
   if (isTsStream(url)) tryMpegts();
@@ -2084,17 +2107,6 @@ function spRenderSplitServers() {
 
 function spBuildSettings() {
   spRenderSplitServers();
-  const sel = $("#sp-channel-select");
-  if (!sel) return;
-  sel.innerHTML = "";
-  const currentId = splitChannel ? splitChannel.id : "";
-  visibleChannels().forEach((c) => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = c.name;
-    if (c.id === currentId) opt.selected = true;
-    sel.appendChild(opt);
-  });
 }
 
 function spToggleSettings(e) {
@@ -2111,11 +2123,49 @@ function spCloseSettings() {
   $("#sp-settings-btn")?.setAttribute("aria-expanded", "false");
 }
 
-function spChangeChannel(id) {
-  const chan = CHANNELS.find((c) => c.id === id);
-  if (!chan) return;
+// Slot B's channel list — the same slide-in panel slot A has, rendered inside
+// slot B's own frame and opening channels in slot B.
+function spOpenChannelList() {
   spCloseSettings();
-  openSplitChannel(chan);
+  const panel = $("#sp-float-chlist");
+  if (!panel) return;
+  spRenderFloatChList("");
+  panel.classList.add("open");
+  const inp = $("#sp-float-search");
+  if (inp) { inp.value = ""; inp.focus(); }
+}
+function spCloseFloatChList() { $("#sp-float-chlist")?.classList.remove("open"); }
+function spFloatChSearch(val) { spRenderFloatChList(val); }
+function spRenderFloatChList(query) {
+  const body = $("#sp-float-chlist-body");
+  if (!body) return;
+  const q = (query || "").toLowerCase().trim();
+  const pool = visibleChannels();
+  const filtered = q ? pool.filter((c) => c.name.toLowerCase().includes(q)) : pool;
+  body.innerHTML = "";
+  if (!filtered.length) {
+    body.innerHTML = '<div style="padding:20px;text-align:center;color:#555;font-size:12px;">No channels found</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  filtered.forEach((ch, idx) => {
+    const item = document.createElement("div");
+    item.className = "cv-float-ch-item" + (splitChannel && ch.id === splitChannel.id ? " active" : "");
+    const logoHtml = ch.logo
+      ? `<img class="cv-float-ch-logo" src="${ch.logo}" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextSibling.style.display='block'"><div class="cv-float-ch-logo-ph" style="display:none"></div>`
+      : `<div class="cv-float-ch-logo-ph"></div>`;
+    item.innerHTML = `
+      <span class="cv-float-ch-num">${idx + 1}</span>
+      ${logoHtml}
+      <div class="cv-float-ch-info">
+        <div class="cv-float-ch-name">${ch.name}</div>
+        <div class="cv-float-ch-group">${ch.group}</div>
+      </div>
+      <span class="cv-float-status-dot"></span>`;
+    item.onclick = () => { spCloseFloatChList(); openSplitChannel(ch); };
+    frag.appendChild(item);
+  });
+  body.appendChild(frag);
 }
 
 function spTogglePlay() {
@@ -2182,6 +2232,27 @@ function spToggleFullscreen() {
   }
 }
 
+function spSetQuality(val) {
+  if (!splitHlsInstance) { spShowToast("এই স্ট্রিমে কোয়ালিটি নেই"); return; }
+  splitHlsInstance.currentLevel = parseInt(val, 10);
+  const sel = $("#sp-quality-select");
+  const label = sel && sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "Auto";
+  spShowToast("Quality: " + label);
+}
+
+function spGoLive() {
+  const v = spVideoEl();
+  if (!v) return;
+  try {
+    if (v.seekable && v.seekable.length > 0) {
+      v.currentTime = v.seekable.end(v.seekable.length - 1) - 1;
+      const btn = $("#sp-golive-btn");
+      if (btn) btn.style.display = "none";
+      spShowToast("● LIVE");
+    }
+  } catch {}
+}
+
 function spTogglePip() {
   const v = spVideoEl();
   if (!v) return;
@@ -2243,7 +2314,7 @@ function spUpdateProgress() {
   const v = spVideoEl();
   if (!v || spIsSeeking) return;
   const fill = $("#sp-progress-fill"), thumb = $("#sp-progress-thumb"), buf = $("#sp-progress-buffer");
-  const elapsed = $("#sp-elapsed"), durText = $("#sp-duration"), liveBar = $("#sp-progress-live");
+  const elapsed = $("#sp-elapsed"), durText = $("#sp-duration"), liveBar = $("#sp-progress-live"), liveBtn = $("#sp-golive-btn");
   const dur = v.duration;
   const isLive = !isFinite(dur) || dur === Infinity;
   if (elapsed) elapsed.textContent = cvFmtTime(v.currentTime);
@@ -2253,8 +2324,15 @@ function spUpdateProgress() {
     if (thumb) thumb.style.left = "0%";
     if (buf) buf.style.width = "0%";
     if (durText) durText.textContent = "LIVE";
+    try {
+      if (v.seekable && v.seekable.length > 0) {
+        const edge = v.seekable.end(v.seekable.length - 1);
+        if (liveBtn) liveBtn.style.display = (edge - v.currentTime) > 8 ? "flex" : "none";
+      }
+    } catch {}
   } else {
     if (liveBar) liveBar.style.display = "none";
+    if (liveBtn) liveBtn.style.display = "none";
     const frac = dur > 0 ? v.currentTime / dur : 0;
     if (fill) fill.style.width = frac * 100 + "%";
     if (thumb) thumb.style.left = frac * 100 + "%";
@@ -2271,6 +2349,8 @@ function closeSplitChannel() {
   destroySplitPlayers();
   splitChannel = null;
   spIsSeeking = false;
+  const qsel = $("#sp-quality-select");
+  if (qsel) { qsel.innerHTML = '<option value="-1">Auto</option>'; qsel.disabled = true; }
   spCloseSettings();
   $("#splitShell")?.classList.add("hidden");
   $("#playerSplitWrap")?.classList.remove("split-active");
