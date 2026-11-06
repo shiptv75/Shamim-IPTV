@@ -1396,6 +1396,7 @@ function syncPaneHeights() {
   const playerPane = $("#playerPane");
   const channelPane = document.querySelector(".channel-pane");
   if (!playerPane || !channelPane) return;
+  if (playerPane.classList.contains("player-float")) return; // floating size is not the pane size
 
   if (window.innerWidth <= 860) {
     channelPane.style.maxHeight = "";
@@ -3254,10 +3255,523 @@ function setupPlayerControls() {
   }
 }
 
+// ============================================================
+// TOOLS EXTRAS
+//  1. Admin Playlists — playlists defined in JS, each opening in its
+//     own player + channel list right inside the Tools page.
+//  2. Auto-floating player — the video shrinks into a floating window
+//     once you scroll past it and returns when you scroll back.
+//  3. Duplicate / Unique checker — compare two M3U playlists.
+// ============================================================
+
+// ---- add as many admin playlists as you like here -------------------------
+const ADMIN_PLAYLISTS = [
+  { name: "XNIPTV", url: "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u" },
+  { name: "Nafi TV", url: "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u" },
+  { name: "Toffee", url: "https://tv9.workerbot-tv9.workers.dev/toffee.m3u" },
+  { name: "SkyTop", url: "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u" },
+  { name: "JagoBD", url: "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u" },
+  // add more here: { name: "My Playlist", url: "https://example.com/playlist.m3u" },
+];
+
+let adminChannels = [];
+let adminCurrent = null;
+let adminHls = null;
+let adminMpegts = null;
+let adminVolume = 1;
+let adminMuted = false;
+let adminFloat = null;
+
+function adminEsc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function adminDestroyPlayers() {
+  if (adminHls) { try { adminHls.destroy(); } catch {} adminHls = null; }
+  if (adminMpegts) { try { adminMpegts.destroy(); } catch {} adminMpegts = null; }
+  const v = $("#adminVideoNode");
+  if (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch {} }
+}
+
+// M3U text -> [{ id, name, logo, group, sources[] }] merged by channel name.
+function adminParse(text) {
+  const byName = new Map();
+  parseSingleSourceRaw(text).forEach((e) => {
+    const key = slugify(e.name);
+    if (!byName.has(key)) {
+      byName.set(key, { id: key, name: e.name, logo: e.logo || "", group: e.group || "", sources: [] });
+    }
+    const ch = byName.get(key);
+    (e.sources || []).forEach((u) => { if (!ch.sources.includes(u)) ch.sources.push(u); });
+    if (!ch.logo && e.logo) ch.logo = e.logo;
+    if (!ch.group && e.group) ch.group = e.group;
+  });
+  return [...byName.values()];
+}
+
+function renderAdminPlaylists() {
+  const box = $("#adminPlaylistList");
+  if (!box) return;
+  if (!ADMIN_PLAYLISTS.length) {
+    box.innerHTML = '<div class="pl-store-empty">No admin playlists configured yet</div>';
+    return;
+  }
+  box.innerHTML = ADMIN_PLAYLISTS.map((p, i) => `
+    <div class="pl-store-item">
+      <div class="pl-store-info">
+        <div class="pl-store-name">${adminEsc(p.name || nameFromUrl(p.url))}</div>
+        <div class="pl-store-link" title="${adminEsc(p.url)}">${adminEsc(p.url)}</div>
+      </div>
+      <button class="pl-store-btn load" data-admin-play="${i}" type="button"><i class="fa-solid fa-play"></i> Open</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-admin-play]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const def = ADMIN_PLAYLISTS[Number(btn.dataset.adminPlay)];
+      if (def) adminOpenPlaylist(def);
+    });
+  });
+}
+
+async function adminOpenPlaylist(def) {
+  const section = $("#adminPlayerSection");
+  const listEl = $("#adminChList");
+  if (!section || !listEl || !def) return;
+
+  section.classList.remove("hidden");
+  const nameEl = $("#adminPlaylistName");
+  if (nameEl) nameEl.textContent = def.name || "Admin Playlist";
+  const countEl = $("#adminChCount");
+  if (countEl) countEl.textContent = "";
+  listEl.innerHTML = '<div class="admin-empty"><span class="scan-spinner"></span> লোড হচ্ছে…</div>';
+  adminChannels = [];
+  adminCurrent = null;
+
+  try {
+    const text = await toolsFetchText(def.url);
+    adminChannels = adminParse(text);
+    if (!adminChannels.length) {
+      listEl.innerHTML = '<div class="admin-empty">এই প্লেলিস্টে কোনো চ্যানেল পাওয়া যায়নি</div>';
+      toast("প্লেলিস্টে কোনো চ্যানেল নেই");
+      return;
+    }
+    if (countEl) countEl.textContent = adminChannels.length;
+    adminRenderChannels("");
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => { if (adminFloat) adminFloat.refresh(); });
+    adminPlayChannel(adminChannels[0]);
+  } catch (e) {
+    listEl.innerHTML = '<div class="admin-empty">প্লেলিস্ট লোড করা যায়নি</div>';
+    toast("প্লেলিস্ট লোড করা যায়নি");
+  }
+}
+
+function adminRenderChannels(query) {
+  const body = $("#adminChList");
+  if (!body) return;
+  const q = (query || "").toLowerCase().trim();
+  const list = q ? adminChannels.filter((c) => c.name.toLowerCase().includes(q)) : adminChannels;
+  if (!list.length) {
+    body.innerHTML = '<div class="admin-empty">কোনো চ্যানেল পাওয়া যায়নি</div>';
+    return;
+  }
+  body.innerHTML = list.map((c) => `
+    <button class="admin-ch-item${adminCurrent && adminCurrent.id === c.id ? " active" : ""}" type="button" data-ch="${adminEsc(c.id)}">
+      ${c.logo
+        ? `<img src="${adminEsc(c.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+        : `<span class="admin-ch-fallback">${adminEsc(c.name.slice(0, 2).toUpperCase())}</span>`}
+      <span class="admin-ch-name">${adminEsc(c.name)}</span>
+    </button>`).join("");
+  body.querySelectorAll(".admin-ch-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const ch = adminChannels.find((c) => c.id === btn.dataset.ch);
+      if (ch) adminPlayChannel(ch);
+    });
+  });
+}
+
+function adminPlayChannel(ch) {
+  if (!ch || !ch.sources || !ch.sources.length) { toast("এই চ্যানেলের কোনো সোর্স নেই"); return; }
+  const video = $("#adminVideoNode");
+  if (!video) return;
+
+  adminCurrent = ch;
+  adminRenderChannels($("#adminSearch") ? $("#adminSearch").value : "");
+  adminDestroyPlayers();
+
+  const loader = $("#adminLoader");
+  if (loader) loader.classList.add("active");
+  const titleEl = $("#adminChannelTitle");
+  if (titleEl) titleEl.textContent = ch.name;
+  const statusEl = $("#adminChannelStatus");
+  if (statusEl) statusEl.textContent = "Category: " + (ch.group || "—") + " · Sources: " + ch.sources.length;
+
+  const logoFrame = $("#adminLogoFrame");
+  if (logoFrame) {
+    logoFrame.innerHTML = ch.logo
+      ? `<img src="${adminEsc(ch.logo)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+      : `<i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>`;
+  }
+
+  video.volume = adminVolume;
+  video.muted = adminMuted;
+  video.onplaying = () => { if (loader) loader.classList.remove("active"); adminSyncPlayIcon(); };
+  video.oncanplay = () => { if (loader) loader.classList.remove("active"); };
+  video.onerror = () => { if (loader) loader.classList.remove("active"); };
+
+  const url = playbackUrl(ch.sources[0]);
+  const done = () => { if (loader) loader.classList.remove("active"); };
+
+  if (isTsStream(url) && typeof mpegts !== "undefined" && mpegts.isSupported()) {
+    adminMpegts = mpegts.createPlayer({
+      type: "mpegts", url, isLive: true, enableWorker: true, cors: true, withCredentials: false, liveBufferLatencyChasing: true,
+    });
+    adminMpegts.attachMediaElement(video);
+    adminMpegts.load();
+    adminMpegts.play().catch(() => {});
+  } else if (window.Hls && Hls.isSupported()) {
+    adminHls = new Hls({
+      enableWorker: true, lowLatencyMode: true,
+      manifestLoadingTimeOut: 10000, manifestLoadingMaxRetry: 2,
+      levelLoadingTimeOut: 8000, fragLoadingTimeOut: 10000,
+    });
+    adminHls.loadSource(url);
+    adminHls.attachMedia(video);
+    adminHls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+    adminHls.on(Hls.Events.ERROR, (evt, data) => { if (data && data.fatal) done(); });
+  } else {
+    video.src = url;
+    video.play().catch(() => {});
+  }
+
+  adminSyncPlayIcon();
+  adminSyncMute();
+}
+
+function adminSyncPlayIcon() {
+  const v = $("#adminVideoNode");
+  const icon = $("#adminPlayIcon");
+  if (v && icon) icon.className = "fa-solid " + (v.paused ? "fa-play" : "fa-pause");
+}
+function adminSyncMute() {
+  const v = $("#adminVideoNode");
+  if (!v) return;
+  const icon = $("#adminVolIcon");
+  const slider = $("#adminVolSlider");
+  if (slider) slider.value = v.muted ? 0 : v.volume;
+  if (!icon) return;
+  if (v.muted || v.volume === 0) icon.className = "fa-solid fa-volume-xmark";
+  else if (v.volume < 0.4) icon.className = "fa-solid fa-volume-off";
+  else if (v.volume < 0.7) icon.className = "fa-solid fa-volume-low";
+  else icon.className = "fa-solid fa-volume-high";
+}
+function adminTogglePlay() {
+  const v = $("#adminVideoNode");
+  if (!v) return;
+  if (v.paused) v.play().catch(() => {}); else v.pause();
+  adminSyncPlayIcon();
+}
+function adminToggleMute() {
+  const v = $("#adminVideoNode");
+  if (!v) return;
+  v.muted = !v.muted;
+  adminMuted = v.muted;
+  adminSyncMute();
+}
+function adminSetVolume(val) {
+  const v = $("#adminVideoNode");
+  if (!v) return;
+  const n = parseFloat(val);
+  v.volume = n;
+  v.muted = n === 0;
+  adminMuted = v.muted;
+  if (n > 0) adminVolume = n;
+  adminSyncMute();
+}
+function adminToggleFullscreen() {
+  const frame = $("#adminFrame");
+  const icon = $("#adminFsIcon");
+  if (!frame) return;
+  if (!document.fullscreenElement) {
+    frame.requestFullscreen?.().catch(() => {});
+    if (icon) icon.className = "fa-solid fa-compress";
+  } else {
+    document.exitFullscreen?.();
+    if (icon) icon.className = "fa-solid fa-expand";
+  }
+}
+function adminClosePlayer() {
+  adminDestroyPlayers();
+  adminChannels = [];
+  adminCurrent = null;
+  if (adminFloat) adminFloat.leave();
+  const section = $("#adminPlayerSection");
+  if (section) section.classList.add("hidden");
+}
+
+// ------------------------------------------------------------
+// Auto-floating player
+//   Once the player's slot is scrolled past, the pane is pinned as a small
+//   floating window (a spacer keeps the page layout from jumping). Scrolling
+//   back restores it to its normal place and size.
+// ------------------------------------------------------------
+function setupAutoFloat(pane, opts = {}) {
+  if (!pane) return null;
+  const pad = opts.thresholdPad != null ? opts.thresholdPad : 120;
+  let floating = false;
+  let spacer = null;
+  let backBtn = null;
+  let staticTop = 0;
+  let ticking = false;
+
+  function measure() {
+    if (floating || pane.offsetParent === null) return;
+    staticTop = window.scrollY + pane.getBoundingClientRect().top;
+  }
+
+  function enter() {
+    if (floating) return;
+    if (opts.canFloat && !opts.canFloat()) return;
+    const rect = pane.getBoundingClientRect();
+    if (!rect.height) return;
+    floating = true;
+    spacer = document.createElement("div");
+    spacer.className = "float-spacer";
+    spacer.style.width = Math.round(rect.width) + "px";
+    spacer.style.height = Math.round(rect.height) + "px";
+    spacer.style.flex = "1 1 auto";
+    spacer.style.minWidth = "0";
+    pane.parentNode.insertBefore(spacer, pane);
+    pane.classList.add("player-float");
+    backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "float-back-btn";
+    backBtn.title = "আসল জায়গায় ফিরে যান";
+    backBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+    backBtn.addEventListener("click", () => {
+      window.scrollTo({ top: Math.max(0, staticTop - 140), behavior: "smooth" });
+    });
+    pane.appendChild(backBtn);
+  }
+
+  function leave() {
+    if (!floating) return;
+    floating = false;
+    pane.classList.remove("player-float");
+    if (spacer && spacer.parentNode) spacer.parentNode.removeChild(spacer);
+    spacer = null;
+    if (backBtn && backBtn.parentNode) backBtn.parentNode.removeChild(backBtn);
+    backBtn = null;
+    measure();
+  }
+
+  function update() {
+    if (pane.offsetParent === null) { leave(); return; }
+    if (floating && opts.canFloat && !opts.canFloat()) { leave(); return; }
+    if (!staticTop) measure();
+    if (!staticTop) return;
+    const threshold = staticTop + (pane.offsetHeight || 0) - pad;
+    const y = window.scrollY;
+    if (!floating && y > threshold) enter();
+    else if (floating && y < threshold - 80) leave();
+  }
+
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; update(); });
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", () => { if (!floating) measure(); onScroll(); });
+  requestAnimationFrame(() => { measure(); update(); });
+
+  return {
+    refresh() { if (!floating) { staticTop = 0; measure(); } update(); },
+    leave,
+    isFloating: () => floating,
+  };
+}
+
+// ------------------------------------------------------------
+// Duplicate / Unique checker
+// ------------------------------------------------------------
+let cmpSet = "both";
+let cmpData = { both: [], a: [], b: [] };
+
+function cmpNormalize(name) {
+  return String(name || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+function cmpParse(text) {
+  const map = new Map();
+  parseSingleSourceRaw(text).forEach((e) => {
+    const key = cmpNormalize(e.name);
+    if (!key) return;
+    if (!map.has(key)) map.set(key, { name: e.name, group: e.group || "", urls: [] });
+    const item = map.get(key);
+    (e.sources || []).forEach((u) => { if (!item.urls.includes(u)) item.urls.push(u); });
+  });
+  return [...map.values()];
+}
+async function cmpGetText(which) {
+  const urlEl = $("#cmpUrl" + which);
+  const textEl = $("#cmpText" + which);
+  const pasted = (textEl && textEl.value || "").trim();
+  if (pasted) return pasted;
+  const url = (urlEl && urlEl.value || "").trim();
+  if (!isHttpUrl(url)) throw new Error("প্লেলিস্ট " + which + ": URL দিন বা টেক্সট পেস্ট করুন");
+  return await toolsFetchText(url);
+}
+
+function setCmpStatus(msg, kind) {
+  const el = $("#cmpStatus");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "chk-status" + (kind ? " " + kind : "");
+}
+
+async function cmpRun() {
+  setCmpStatus("তুলনা করা হচ্ছে…");
+  try {
+    const [aText, bText] = await Promise.all([cmpGetText("A"), cmpGetText("B")]);
+    const a = cmpParse(aText);
+    const b = cmpParse(bText);
+    if (!a.length || !b.length) throw new Error("দুই প্লেলিস্টেই অন্তত একটি চ্যানেল থাকতে হবে");
+
+    const aMap = new Map(a.map((x) => [cmpNormalize(x.name), x]));
+    const bMap = new Map(b.map((x) => [cmpNormalize(x.name), x]));
+    const both = [];
+    const onlyA = [];
+    const onlyB = [];
+    aMap.forEach((x, k) => (bMap.has(k) ? both.push(x) : onlyA.push(x)));
+    bMap.forEach((x, k) => { if (!aMap.has(k)) onlyB.push(x); });
+    const byName = (x, y) => x.name.localeCompare(y.name, undefined, { sensitivity: "base" });
+    both.sort(byName); onlyA.sort(byName); onlyB.sort(byName);
+
+    cmpData = { both, a: onlyA, b: onlyB };
+    const setN = (id, n) => { const el = $(id); if (el) el.textContent = n; };
+    setN("#cmpNBoth", both.length);
+    setN("#cmpNA", onlyA.length);
+    setN("#cmpNB", onlyB.length);
+
+    const summary = $("#cmpSummary");
+    if (summary) {
+      summary.innerHTML =
+        "A: <b>" + a.length + "</b> · B: <b>" + b.length + "</b> · " +
+        "Common: <b class=\"w\">" + both.length + "</b> · " +
+        "Only A: <b>" + onlyA.length + "</b> · Only B: <b>" + onlyB.length + "</b>";
+    }
+    const results = $("#cmpResults");
+    if (results) results.classList.remove("hidden");
+    setCmpStatus("✓ তুলনা সম্পন্ন", "ok");
+    cmpRender();
+  } catch (e) {
+    setCmpStatus("✗ " + (e && e.message ? e.message : "তুলনা ব্যর্থ"), "err");
+  }
+}
+
+function cmpRender() {
+  const list = $("#cmpList");
+  if (!list) return;
+  const items = cmpData[cmpSet] || [];
+  if (!items.length) {
+    list.innerHTML = '<div class="chk-empty">এই তালিকায় কিছু নেই</div>';
+    return;
+  }
+  list.innerHTML = items.map((it) => `
+    <div class="chk-row cmp-row">
+      <div class="chk-name">${adminEsc(it.name)}</div>
+      <div class="chk-url">${adminEsc(it.group || "—")}</div>
+      <div class="cmp-n">${it.urls.length}</div>
+    </div>`).join("");
+}
+
+function setCmpFilter(key) {
+  cmpSet = key;
+  $$("#cmpTabs .chk-tab").forEach((b) => b.classList.toggle("active", b.dataset.set === key));
+  cmpRender();
+}
+
+async function cmpCopy() {
+  const items = cmpData[cmpSet] || [];
+  if (!items.length) { toast("কপি করার মতো কিছু নেই"); return; }
+  try {
+    await navigator.clipboard.writeText(items.map((i) => i.name).join("\n"));
+    toast(items.length + " চ্যানেল কপি হয়েছে");
+  } catch {
+    toast("কপি করা যায়নি");
+  }
+}
+
+function cmpExport() {
+  const items = cmpData[cmpSet] || [];
+  if (!items.length) { toast("এক্সপোর্ট করার মতো কিছু নেই"); return; }
+  const lines = ["#EXTM3U"];
+  items.forEach((it) => {
+    const urls = it.urls.length ? it.urls : [""];
+    urls.forEach((u) => {
+      lines.push('#EXTINF:-1 group-title="' + (it.group || "Other").replace(/"/g, "") + '",' + it.name);
+      if (u) lines.push(u);
+    });
+  });
+  const blob = new Blob([lines.join("\n")], { type: "audio/x-mpegurl" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "channels-" + cmpSet + ".m3u";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast("M3U ডাউনলোড হচ্ছে");
+}
+
+function cmpClear() {
+  ["cmpUrlA", "cmpUrlB"].forEach((id) => { const el = $("#" + id); if (el) el.value = ""; });
+  ["cmpTextA", "cmpTextB"].forEach((id) => { const el = $("#" + id); if (el) el.value = ""; });
+  cmpData = { both: [], a: [], b: [] };
+  const results = $("#cmpResults");
+  if (results) results.classList.add("hidden");
+  setCmpStatus("");
+}
+
+// ------------------------------------------------------------
+// wiring
+// ------------------------------------------------------------
+function setupToolsExtras() {
+  // Every block is independent on purpose: if one ever fails (missing element,
+  // bad config) the rest of the Tools page keeps working instead of going dead.
+  try { renderAdminPlaylists(); } catch (e) { console.error("Admin playlists failed:", e); }
+
+  try {
+    $("#cmpRunBtn")?.addEventListener("click", cmpRun);
+    $("#cmpClearBtn")?.addEventListener("click", cmpClear);
+    $("#cmpCopy")?.addEventListener("click", cmpCopy);
+    $("#cmpExport")?.addEventListener("click", cmpExport);
+    $$("#cmpTabs .chk-tab").forEach((b) => b.addEventListener("click", () => setCmpFilter(b.dataset.set)));
+    ["cmpUrlA", "cmpUrlB"].forEach((id) => {
+      $("#" + id)?.addEventListener("keydown", (e) => { if (e.key === "Enter") cmpRun(); });
+    });
+  } catch (e) { console.error("Compare tool failed:", e); }
+
+  try { $("#adminPlayerClose")?.addEventListener("click", adminClosePlayer); } catch (e) { console.error("Admin player failed:", e); }
+
+  try {
+    adminFloat = setupAutoFloat($("#adminPlayerCol"), {
+      thresholdPad: 140,
+      canFloat: () => !!adminCurrent,
+    });
+  } catch (e) { console.error("Tools float failed:", e); }
+
+  try {
+    setupAutoFloat($("#playerPane"), {
+      thresholdPad: 120,
+      canFloat: () => !!currentChannel,
+    });
+  } catch (e) { console.error("Player float failed:", e); }
+}
+
 // ---------- INIT ----------
 async function init() {
   try { setupThemeToggle(); } catch (e) { console.error("Theme toggle failed to start:", e); }
   try { setupToolsPage(); } catch (e) { console.error("Tools page failed to start:", e); } // never let Tools block the main site
+  try { setupToolsExtras(); } catch (e) { console.error("Tools extras failed to start:", e); }
   setupHomeButton();
   setupSearch();
   setupHelpDrawer();
@@ -3459,6 +3973,8 @@ function openToolsPage() {
 function closeToolsPage() {
   if (!document.body.classList.contains("tools-mode")) return;
   document.body.classList.remove("tools-mode");
+  const adminVideo = $("#adminVideoNode");
+  if (adminVideo && !adminVideo.paused) { adminVideo.pause(); try { adminSyncPlayIcon(); } catch {} }
   const b = $("#toolsBtn"); if (b) { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); }
   requestAnimationFrame(() => { try { syncPaneHeights(); } catch {} }); // player pane was hidden — re-measure
 }
