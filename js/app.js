@@ -4129,14 +4129,22 @@ function pgSelectTab(lang) {
 
 // ---- open / close ----
 function openPlayground() {
-  if (!pgEl("playgroundPage")) return;
-  document.body.classList.remove("tools-mode");
-  document.body.classList.add("pg-mode");
-  const toolsBtn = pgEl("toolsBtn");
-  if (toolsBtn) { toolsBtn.classList.remove("active"); toolsBtn.setAttribute("aria-pressed", "false"); }
-  if (pgEl("pgHtml") && !pgEl("pgHtml").value.trim()) pgFillStarter();
-  pgRun();
-  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+  try {
+    if (document.body.classList.contains("pg-mode")) return; // already open
+    const section = pgEl("playgroundPage");
+    if (!section) { console.warn("[playground] #playgroundPage is missing from the page"); return; }
+    document.body.classList.remove("tools-mode");
+    document.body.classList.add("pg-mode");
+    const toolsBtn = pgEl("toolsBtn");
+    if (toolsBtn) { toolsBtn.classList.remove("active"); toolsBtn.setAttribute("aria-pressed", "false"); }
+    if (pgEl("pgHtml") && !pgEl("pgHtml").value.trim()) pgFillStarter();
+    pgRun();
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    console.log("[playground] opened");
+  } catch (e) {
+    console.error("[playground] open failed:", e);
+    toast("Playground খোলা যায়নি");
+  }
 }
 
 function closePlayground() {
@@ -4145,7 +4153,8 @@ function closePlayground() {
 }
 
 function setupPlayground() {
-  if (!pgEl("playgroundPage")) return;
+  if (!pgEl("playgroundPage")) { console.warn("[playground] section missing — old index.html?"); return; }
+  console.log("[playground] ready");
   if (pgEl("openPgBtn")) pgEl("openPgBtn").addEventListener("click", openPlayground);
   if (pgEl("pgBackBtn")) pgEl("pgBackBtn").addEventListener("click", closePlayground);
   if (pgEl("pgRunBtn")) pgEl("pgRunBtn").addEventListener("click", pgRun);
