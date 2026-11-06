@@ -3,7 +3,16 @@
 // ============================================================
 
 const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u";
+const M3U_URL_DEVM3U = "https://m3u.devm3u.top/?u=admin&s=5&p=4545&f=.m3u8";
+const M3U_URL = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/premium121.m3u";
+const M3U_URL_2 = "https://raw.githubusercontent.com/ahan443/FAST-IPTV/refs/heads/main/z.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
+const M3U_URL_XNIPTV = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/xniptv.m3u";
+const M3U_URL_NAFITV = "https://raw.githubusercontent.com/nfiptv24-max/NAFITV/refs/heads/main/Nafitv24.m3u";
+const M3U_URL_TV9_TOFFEE = "https://tv9.workerbot-tv9.workers.dev/toffee.m3u";
+const M3U_URL_SKYTOP = "https://raw.githubusercontent.com/shiptv75/skytop/refs/heads/main/playlist.m3u";
+const M3U_URL_JAGOBD = "https://raw.githubusercontent.com/sm-monirulislam/jago_bd_auto_update_playlist-/refs/heads/main/jago_bd.m3u";
+
 
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
@@ -14,13 +23,21 @@ const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/
 
 
 const M3U_SOURCES = [
+  { url: M3U_URL_2, type: "m3u", source: "Z Playlist" },
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
-   { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
+  { url: M3U_URL_DEVM3U, type: "m3u", source: "DEV M3U" },
+  { url: M3U_URL, type: "m3u", source: "FAST IPTV" },
+  { url: M3U_URL_XNIPTV, type: "m3u", source: "XNIPTV" },
+  { url: M3U_URL_NAFITV, type: "m3u", source: "NafiTV" },
+  { url: M3U_URL_TV9_TOFFEE, type: "m3u", source: "Toffee" },
+  { url: M3U_URL_SKYTOP, type: "m3u", source: "SkyTop" },
+  { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
- 
+  { url: M3U_URL_JAGOBD , type: "m3u", source: "JAGOBD" },
+
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -3750,11 +3767,432 @@ function setupToolsExtras() {
   } catch (e) { console.error("Player float failed:", e); }
 }
 
+// ============================================================
+// CODE PLAYGROUND (CodePen-style)
+//  - paste HTML / CSS / JS and see it render live
+//  - save the rendered design as a PNG image
+//  - save code as a project (with a thumbnail) in localStorage
+//  - download the whole thing as a single .html file
+// ============================================================
+const PG_STORE_KEY = "obiram_pg_projects_v1";
+
+const PG_STARTER = {
+  html: `<div class="card">
+  <h1>Shamim IPTV</h1>
+  <p>HTML, CSS আর JS এখানে লিখুন — ডান পাশে সাথে সাথে দেখা যাবে।</p>
+  <button id="go">Click me</button>
+</div>`,
+  css: `body{
+  margin:0; min-height:100vh; display:grid; place-items:center;
+  background:#0b1220; font-family:system-ui,sans-serif; color:#fff;
+}
+.card{
+  padding:32px 36px; border-radius:18px; text-align:center;
+  background:linear-gradient(135deg,#0a5c45,#00c97a);
+  box-shadow:0 22px 50px rgba(0,201,122,.35);
+}
+h1{ margin:0 0 8px; font-size:28px; }
+p{ margin:0 0 18px; opacity:.9; }
+button{ border:0; padding:10px 22px; border-radius:999px; font-weight:700; cursor:pointer; }`,
+  js: `document.getElementById("go").addEventListener("click", () => {
+  document.querySelector(".card").animate(
+    [{ transform: "scale(1)" }, { transform: "scale(1.06)" }, { transform: "scale(1)" }],
+    { duration: 380 }
+  );
+});`,
+};
+
+let pgCurrentId = null;
+let pgRunTimer = null;
+
+function pgEl(id) { return document.getElementById(id); }
+
+function pgStatus(msg, kind) {
+  const el = pgEl("pgStatus");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "chk-status" + (kind ? " " + kind : "");
+}
+
+function pgCollect() {
+  return {
+    html: (pgEl("pgHtml") || {}).value || "",
+    css: (pgEl("pgCss") || {}).value || "",
+    js: (pgEl("pgJs") || {}).value || "",
+  };
+}
+
+// Keeps user code from closing the tags we inject it into.
+function pgEscapeClose(text, tag) {
+  return String(text || "").replace(new RegExp("</" + tag, "gi"), "<\\/" + tag);
+}
+
+function pgBuildDoc(code) {
+  const css = pgEscapeClose(code.css, "style");
+  const js = pgEscapeClose(code.js, "script");
+  const html = code.html || "";
+  const styleTag = "<style>" + css + "</style>";
+  const scriptTag = "<script>" + js + "</script>";
+
+  // The visitor pasted a complete HTML document: inject into it instead of
+  // wrapping it in a second <html>.
+  if (/<html[\s>]/i.test(html)) {
+    let doc = html;
+    const headClose = doc.search(/<\/head>/i);
+    if (headClose !== -1) {
+      doc = doc.slice(0, headClose) + styleTag + doc.slice(headClose);
+    } else {
+      const htmlOpen = doc.search(/<html[^>]*>/i);
+      if (htmlOpen !== -1) {
+        const tagEnd = doc.indexOf(">", htmlOpen) + 1;
+        doc = doc.slice(0, tagEnd) + "<head>" + styleTag + "</head>" + doc.slice(tagEnd);
+      } else {
+        doc = styleTag + doc;
+      }
+    }
+    const bodyClose = doc.search(/<\/body>/i);
+    if (bodyClose !== -1) doc = doc.slice(0, bodyClose) + scriptTag + doc.slice(bodyClose);
+    else doc += scriptTag;
+    return doc;
+  }
+
+  return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+    styleTag + "</head><body>" + html + scriptTag + "</body></html>";
+}
+
+function pgRun() {
+  const frame = pgEl("pgFrame");
+  if (!frame) return;
+  try {
+    frame.srcdoc = pgBuildDoc(pgCollect());
+    pgStatus("✓ Preview updated", "ok");
+  } catch (e) {
+    pgStatus("✗ Build failed", "err");
+  }
+}
+
+function pgRunSoon() {
+  clearTimeout(pgRunTimer);
+  pgRunTimer = setTimeout(pgRun, 600);
+}
+
+// ---- html2canvas (lazy, only when an image is actually needed) ----
+function pgLoadH2C() {
+  return new Promise((resolve, reject) => {
+    if (window.html2canvas) { resolve(window.html2canvas); return; }
+    const existing = document.getElementById("pgH2C");
+    if (existing) {
+      existing.addEventListener("load", () => (window.html2canvas ? resolve(window.html2canvas) : reject(new Error("missing"))));
+      existing.addEventListener("error", () => reject(new Error("load failed")));
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = "pgH2C";
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    s.onload = () => (window.html2canvas ? resolve(window.html2canvas) : reject(new Error("missing")));
+    s.onerror = () => reject(new Error("load failed"));
+    document.head.appendChild(s);
+  });
+}
+
+async function pgCaptureH2C(scale) {
+  const h2c = await pgLoadH2C();
+  const frame = pgEl("pgFrame");
+  const doc = frame && frame.contentDocument;
+  if (!doc || !doc.body) throw new Error("preview not ready");
+  const width = Math.max(frame.clientWidth || 0, 320);
+  const visible = Math.max(frame.clientHeight || 0, 240);
+  const contentTop = (doc.body.scrollHeight || visible);
+  const height = Math.min(Math.max(visible, contentTop), 4000);
+  return h2c(doc.body, {
+    backgroundColor: "#ffffff",
+    scale: scale || 1,
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    width: width,
+    height: height,
+    windowWidth: width,
+    windowHeight: visible,
+  });
+}
+
+// Fallback rasteriser: serialise the live preview into an SVG <foreignObject>.
+// Works without any library (plain HTML/CSS); external images may be skipped.
+async function pgCaptureSvg(scale) {
+  const frame = pgEl("pgFrame");
+  const doc = frame && frame.contentDocument;
+  if (!doc || !doc.body) throw new Error("preview not ready");
+  const w = Math.max(frame.clientWidth || 320, 320);
+  const h = Math.min(Math.max(frame.clientHeight || 240, doc.body.scrollHeight || 0), 4000);
+  const css = Array.from(doc.querySelectorAll("style")).map((s) => s.textContent || "").join("\n");
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
+    '<foreignObject x="0" y="0" width="100%" height="100%">' +
+    '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' + w + "px;min-height:" + h + 'px;background:#fff">' +
+    "<style>" + css.replace(/<\/style/gi, "<\\/style") + "</style>" +
+    doc.body.innerHTML +
+    "</div></foreignObject></svg>";
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("svg render failed"));
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * (scale || 1));
+  canvas.height = Math.round(h * (scale || 1));
+  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+// Prefer html2canvas (handles images/fonts), fall back to the SVG route.
+async function pgCaptureAny(scale) {
+  try {
+    return await pgCaptureH2C(scale);
+  } catch (e) {
+    return await pgCaptureSvg(scale);
+  }
+}
+
+async function pgSavePng() {
+  pgStatus("ইমেজ তৈরি হচ্ছে…");
+  try {
+    const canvas = await pgCaptureAny(2);
+    const base = ((pgEl("pgName") || {}).value || "design").trim().replace(/[^\w\-]+/g, "-") || "design";
+    const a = document.createElement("a");
+    a.download = base + ".png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+    pgStatus("✓ PNG ডাউনলোড হচ্ছে", "ok");
+  } catch (e) {
+    pgStatus("✗ ইমেজ তৈরি করা যায়নি", "err");
+  }
+}
+
+function pgDownloadHtml() {
+  try {
+    const doc = pgBuildDoc(pgCollect());
+    const base = ((pgEl("pgName") || {}).value || "design").trim().replace(/[^\w\-]+/g, "-") || "design";
+    const blob = new Blob([doc], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = base + ".html";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    pgStatus("✓ HTML ডাউনলোড হচ্ছে", "ok");
+  } catch (e) {
+    pgStatus("✗ ডাউনলোড ব্যর্থ", "err");
+  }
+}
+
+// ---- projects ----
+function pgLoadStore() {
+  try {
+    const v = JSON.parse(localStorage.getItem(PG_STORE_KEY) || "[]");
+    return Array.isArray(v) ? v.filter((p) => p && p.id) : [];
+  } catch { return []; }
+}
+function pgSaveStore(list) {
+  try { localStorage.setItem(PG_STORE_KEY, JSON.stringify(list)); return true; }
+  catch { return false; }
+}
+
+function pgSaveProject() {
+  const code = pgCollect();
+  if (!code.html.trim() && !code.css.trim() && !code.js.trim()) { pgStatus("কিছু লিখুন", "err"); return; }
+  const name = (((pgEl("pgName") || {}).value || "").trim()) || ("Project " + new Date().toLocaleString());
+  const projects = pgLoadStore();
+  const now = Date.now();
+  let record;
+  if (pgCurrentId) {
+    const idx = projects.findIndex((p) => p.id === pgCurrentId);
+    if (idx >= 0) {
+      projects[idx] = Object.assign({}, projects[idx], code, { name: name, updated: now });
+      record = projects[idx];
+    }
+  }
+  if (!record) {
+    pgCurrentId = "pg_" + now + "_" + Math.random().toString(36).slice(2, 7);
+    record = Object.assign({ id: pgCurrentId, name: name, updated: now }, code);
+    projects.unshift(record);
+  }
+  if (!pgSaveStore(projects)) { pgStatus("✗ স্টোরেজ ভরে গেছে", "err"); return; }
+  pgStatus("✓ প্রজেক্ট সেভ হয়েছে", "ok");
+  const count = pgEl("pgProjectCount");
+  if (count) count.textContent = projects.length;
+  pgRenderProjects(false);
+  pgCaptureThumb(record.id); // thumbnail is a bonus — never blocks the save
+}
+
+async function pgCaptureThumb(id) {
+  try {
+    const canvas = await pgCaptureAny(1);
+    const scale = Math.min(1, 320 / canvas.width);
+    const thumb = document.createElement("canvas");
+    thumb.width = Math.max(1, Math.round(canvas.width * scale));
+    thumb.height = Math.max(1, Math.round(canvas.height * scale));
+    thumb.getContext("2d").drawImage(canvas, 0, 0, thumb.width, thumb.height);
+    const data = thumb.toDataURL("image/jpeg", 0.7);
+    const projects = pgLoadStore();
+    const p = projects.find((x) => x.id === id);
+    if (!p) return;
+    p.thumb = data;
+    if (pgSaveStore(projects)) pgRenderProjects(false);
+  } catch (e) { /* optional */ }
+}
+
+function pgLoadProject(id) {
+  const p = pgLoadStore().find((x) => x.id === id);
+  if (!p) return;
+  pgCurrentId = p.id;
+  if (pgEl("pgName")) pgEl("pgName").value = p.name || "";
+  if (pgEl("pgHtml")) pgEl("pgHtml").value = p.html || "";
+  if (pgEl("pgCss")) pgEl("pgCss").value = p.css || "";
+  if (pgEl("pgJs")) pgEl("pgJs").value = p.js || "";
+  pgRun();
+  pgStatus("✓ লোড হয়েছে", "ok");
+  const wrap = pgEl("pgProjects");
+  if (wrap) wrap.classList.add("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function pgDeleteProject(id) {
+  const projects = pgLoadStore().filter((x) => x.id !== id);
+  pgSaveStore(projects);
+  if (pgCurrentId === id) pgCurrentId = null;
+  pgRenderProjects(false);
+  const count = pgEl("pgProjectCount");
+  if (count) count.textContent = projects.length;
+  pgStatus("প্রজেক্ট মুছে ফেলা হয়েছে", "ok");
+}
+
+function pgNewProject() {
+  pgCurrentId = null;
+  if (pgEl("pgName")) pgEl("pgName").value = "";
+  pgFillStarter();
+  pgRun();
+  pgStatus("নতুন প্রজেক্ট", "ok");
+}
+
+function pgRenderProjects(show) {
+  const grid = pgEl("pgProjectGrid");
+  const wrap = pgEl("pgProjects");
+  if (!grid || !wrap) return;
+  const projects = pgLoadStore();
+  const count = pgEl("pgProjectCount");
+  if (count) count.textContent = projects.length;
+  const empty = pgEl("pgProjectsEmpty");
+  if (empty) empty.textContent = projects.length ? "" : "এখনো কোনো প্রজেক্ট সেভ করা হয়নি";
+  grid.innerHTML = "";
+  projects.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "pg-project";
+    const thumb = p.thumb
+      ? '<img src="' + p.thumb + '" alt="">'
+      : '<span class="pg-ph">' + adminEsc(p.name || "Untitled") + "</span>";
+    card.innerHTML =
+      '<div class="pg-project-thumb">' + thumb + "</div>" +
+      '<div class="pg-project-meta">' +
+        '<div class="pg-project-name" title="' + adminEsc(p.name) + '">' + adminEsc(p.name) + "</div>" +
+        '<div class="pg-project-date">' + new Date(p.updated || Date.now()).toLocaleString() + "</div>" +
+      "</div>" +
+      '<div class="pg-project-actions">' +
+        '<button class="pg-project-btn load" type="button" data-act="load" data-id="' + adminEsc(p.id) + '">Load</button>' +
+        '<button class="pg-project-btn del" type="button" data-act="del" data-id="' + adminEsc(p.id) + '">Delete</button>' +
+      "</div>";
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll("[data-act]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.act === "load") pgLoadProject(btn.dataset.id);
+      else pgDeleteProject(btn.dataset.id);
+    });
+  });
+  if (show) wrap.classList.remove("hidden");
+}
+
+function pgFillStarter() {
+  if (pgEl("pgHtml")) pgEl("pgHtml").value = PG_STARTER.html;
+  if (pgEl("pgCss")) pgEl("pgCss").value = PG_STARTER.css;
+  if (pgEl("pgJs")) pgEl("pgJs").value = PG_STARTER.js;
+}
+
+function pgSelectTab(lang) {
+  $$("#pgTabs .pg-tab").forEach((t) => t.classList.toggle("active", t.dataset.lang === lang));
+  [["html", "pgHtml"], ["css", "pgCss"], ["js", "pgJs"]].forEach((pair) => {
+    const el = pgEl(pair[1]);
+    if (el) el.classList.toggle("hidden", pair[0] !== lang);
+  });
+}
+
+// ---- open / close ----
+function openPlayground() {
+  if (!pgEl("playgroundPage")) return;
+  document.body.classList.remove("tools-mode");
+  document.body.classList.add("pg-mode");
+  const toolsBtn = pgEl("toolsBtn");
+  if (toolsBtn) { toolsBtn.classList.remove("active"); toolsBtn.setAttribute("aria-pressed", "false"); }
+  if (pgEl("pgHtml") && !pgEl("pgHtml").value.trim()) pgFillStarter();
+  pgRun();
+  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+}
+
+function closePlayground() {
+  document.body.classList.remove("pg-mode");
+  openToolsPage();
+}
+
+function setupPlayground() {
+  if (!pgEl("playgroundPage")) return;
+  if (pgEl("openPgBtn")) pgEl("openPgBtn").addEventListener("click", openPlayground);
+  if (pgEl("pgBackBtn")) pgEl("pgBackBtn").addEventListener("click", closePlayground);
+  if (pgEl("pgRunBtn")) pgEl("pgRunBtn").addEventListener("click", pgRun);
+  if (pgEl("pgSaveBtn")) pgEl("pgSaveBtn").addEventListener("click", pgSaveProject);
+  if (pgEl("pgNewBtn")) pgEl("pgNewBtn").addEventListener("click", pgNewProject);
+  if (pgEl("pgPngBtn")) pgEl("pgPngBtn").addEventListener("click", pgSavePng);
+  if (pgEl("pgHtmlBtn")) pgEl("pgHtmlBtn").addEventListener("click", pgDownloadHtml);
+  if (pgEl("pgProjectsBtn")) {
+    pgEl("pgProjectsBtn").addEventListener("click", () => {
+      pgRenderProjects(false);
+      const wrap = pgEl("pgProjects");
+      if (wrap) wrap.classList.toggle("hidden");
+    });
+  }
+
+  $$("#pgTabs .pg-tab").forEach((tab) => {
+    tab.addEventListener("click", () => pgSelectTab(tab.dataset.lang));
+  });
+
+  ["pgHtml", "pgCss", "pgJs"].forEach((id) => {
+    const el = pgEl(id);
+    if (!el) return;
+    el.addEventListener("input", pgRunSoon);
+    el.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); pgRun(); return; }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const start = el.selectionStart, end = el.selectionEnd;
+        el.value = el.value.slice(0, start) + "  " + el.value.slice(end);
+        el.selectionStart = el.selectionEnd = start + 2;
+      }
+    });
+  });
+
+  if (pgEl("pgHtml") && !pgEl("pgHtml").value.trim()) pgFillStarter();
+  pgRenderProjects(false);
+  const count = pgEl("pgProjectCount");
+  if (count) count.textContent = pgLoadStore().length;
+  pgRun();
+}
+
 // ---------- INIT ----------
 async function init() {
   try { setupThemeToggle(); } catch (e) { console.error("Theme toggle failed to start:", e); }
   try { setupToolsPage(); } catch (e) { console.error("Tools page failed to start:", e); } // never let Tools block the main site
   try { setupToolsExtras(); } catch (e) { console.error("Tools extras failed to start:", e); }
+  try { setupPlayground(); } catch (e) { console.error("Playground failed to start:", e); }
   setupHomeButton();
   setupSearch();
   setupHelpDrawer();
@@ -3949,6 +4387,7 @@ function urlsToCheckerChannels(urls, group) {
 
 // ---------- page open / close ----------
 function openToolsPage() {
+  document.body.classList.remove("pg-mode");
   document.body.classList.add("tools-mode");
   const b = $("#toolsBtn"); if (b) { b.classList.add("active"); b.setAttribute("aria-pressed", "true"); }
   window.scrollTo({ top: 0, behavior: "smooth" });
