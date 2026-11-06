@@ -333,6 +333,15 @@
         </div>
       </section>
 
+      <!-- Code Playground entry -->
+      <div class="tools-card">
+        <div class="tools-card-head"><i class="fa-solid fa-code"></i> Code Playground</div>
+        <div class="tools-card-body pg-entry-body">
+          <p class="pg-entry-text">HTML / CSS / JavaScript পেস্ট করুন — সাথে সাথে ডিজাইন দেখুন, PNG ইমেজ হিসেবে সেভ করুন, আর পুরো প্রজেক্ট হিসেবে রেখে দিন।</p>
+          <button id="openPgBtn" class="btn-solid" type="button"><i class="fa-solid fa-rocket"></i> Open Playground</button>
+        </div>
+      </div>
+
       <!-- My Saved Playlists -->
       <div class="tools-card">
         <div class="tools-card-head"><i class="fa-solid fa-bookmark"></i> My Saved Playlists</div>
@@ -445,6 +454,52 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ===== CODE PLAYGROUND (CodePen-style, full page) ===== -->
+  <section id="playgroundPage" class="pg-page">
+    <div class="pg-wrap">
+
+      <div class="pg-topbar">
+        <button id="pgBackBtn" class="btn-outline pg-back" type="button" title="Tools-এ ফিরে যান"><i class="fa-solid fa-arrow-left"></i> Tools</button>
+        <input id="pgName" class="tools-input pg-name" type="text" placeholder="Project name" autocomplete="off">
+        <div class="pg-actions">
+          <button id="pgRunBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Run</button>
+          <button id="pgSaveBtn" class="btn-outline" type="button"><i class="fa-regular fa-floppy-disk"></i> Save</button>
+          <button id="pgNewBtn" class="btn-outline" type="button"><i class="fa-solid fa-plus"></i> New</button>
+          <button id="pgProjectsBtn" class="btn-outline" type="button"><i class="fa-solid fa-folder-open"></i> Projects <span id="pgProjectCount" class="chk-tab-n">0</span></button>
+          <button id="pgPngBtn" class="btn-outline" type="button"><i class="fa-solid fa-camera"></i> PNG</button>
+          <button id="pgHtmlBtn" class="btn-outline" type="button"><i class="fa-solid fa-file-arrow-down"></i> HTML</button>
+        </div>
+      </div>
+
+      <div id="pgProjects" class="pg-projects hidden">
+        <div class="pg-projects-head">Saved projects <span id="pgProjectsEmpty" class="chk-status"></span></div>
+        <div id="pgProjectGrid" class="pg-project-grid"></div>
+      </div>
+
+      <div class="pg-main">
+        <div class="pg-editor-col">
+          <div class="pg-tabs" id="pgTabs">
+            <button class="pg-tab active" data-lang="html" type="button">HTML</button>
+            <button class="pg-tab" data-lang="css" type="button">CSS</button>
+            <button class="pg-tab" data-lang="js" type="button">JS</button>
+            <span class="pg-hint">Ctrl+Enter = Run</span>
+          </div>
+          <textarea id="pgHtml" class="pg-code" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+          <textarea id="pgCss" class="pg-code hidden" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+          <textarea id="pgJs" class="pg-code hidden" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        </div>
+        <div class="pg-preview-col">
+          <div class="pg-preview-head">
+            <span><i class="fa-solid fa-eye"></i> Preview</span>
+            <span id="pgStatus" class="chk-status"></span>
+          </div>
+          <iframe id="pgFrame" class="pg-frame" title="Preview" sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups"></iframe>
+        </div>
+      </div>
+
     </div>
   </section>
 
