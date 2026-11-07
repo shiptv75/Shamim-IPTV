@@ -157,8 +157,8 @@
   
   },
   "updates": [
-    { "event": "T10", "channel": "Willow" },
-    { "event": "", "channel": "T Sports" },
+    { "event": "T10", "channel": "Willow Sports" },
+    { "event": "Bangladesh VS West Indies", "channel": "T Sports" },
     { "event": "Serie A", "channel": "ESPN" }
   ]
 }
