@@ -3554,13 +3554,12 @@ function setupAutoFloat(pane, opts = {}) {
   let spacer = null;
   let backBtn = null;
   let ticking = false;
-  let lastDocTop = 0;
+  let slotTop = 0; // document Y of the player's own slot
 
   function canFloat() { return !opts.canFloat || !!opts.canFloat(); }
 
-  // Document position of the pane, ignoring sticky/fixed positioning — summing
-  // offsetTop up the offsetParent chain gives the layout position no matter
-  // where the page is scrolled or whether the element is currently stuck.
+  // Layout position (sticky/fixed ignored), independent of scroll or of when
+  // the page was measured.
   function docTopOf(el) {
     let y = 0;
     let node = el;
@@ -3572,7 +3571,7 @@ function setupAutoFloat(pane, opts = {}) {
     if (floating || !canFloat()) return;
     const rect = pane.getBoundingClientRect();
     if (!rect.height) return;
-    lastDocTop = docTopOf(pane);
+    slotTop = docTopOf(pane);
     floating = true;
     spacer = document.createElement("div");
     spacer.className = "float-spacer";
@@ -3588,7 +3587,7 @@ function setupAutoFloat(pane, opts = {}) {
     backBtn.title = "আসল জায়গায় ফিরে যান";
     backBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     backBtn.addEventListener("click", () => {
-      window.scrollTo({ top: Math.max(0, lastDocTop - 140), behavior: "smooth" });
+      window.scrollTo({ top: Math.max(0, slotTop - 140), behavior: "smooth" });
     });
     pane.appendChild(backBtn);
   }
@@ -3605,24 +3604,22 @@ function setupAutoFloat(pane, opts = {}) {
 
   function update() {
     if (floating) {
-      // NOTE: a fixed-position element reports offsetParent === null, so this
-      // branch must NOT use that as a "hidden" test — doing so cancelled the
-      // floating state on the very next scroll event.
+      // A fixed-position element reports offsetParent === null, so this branch
+      // must not use that as a "hidden" test.
       if (!canFloat()) { leave(); return; }
       if (!pane.getBoundingClientRect().height) { leave(); return; } // really hidden
-      const slot = spacer && spacer.getBoundingClientRect();
-      if (slot && slot.top > -40) leave(); // the original spot is back on screen
+      if (window.scrollY < slotTop + 20) leave(); // scrolled back to the player
       return;
     }
 
     if (pane.offsetParent === null) return; // hidden (e.g. Tools page open)
     if (!canFloat()) return;
+    if (!pane.offsetHeight) return;
 
-    const height = pane.offsetHeight || 0;
-    if (!height) return;
-    const docTop = docTopOf(pane);
-    const threshold = docTop + Math.max(140, height * 0.55);
-    if (window.scrollY > threshold) enter();
+    // Float as soon as the visitor has scrolled just past the player's slot, so
+    // the video is never lost — this does not depend on sticky positioning
+    // (a player taller than the viewport never sticks).
+    if (window.scrollY > docTopOf(pane) + 120) enter();
   }
 
   function onScroll() {
