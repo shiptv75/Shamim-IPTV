@@ -1,21 +1,21 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="bn">
 <head>
 <script>
-/* apply the saved theme BEFORE first paint, so there is no dark→light flash on load */
+/* apply the saved theme BEFORE first paint, so there is no darkâ†’light flash on load */
 (function(){try{if(localStorage.getItem('shamim_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Shamim IPTV — Live TV Streaming</title>
-<meta name="description" content="বাংলাদেশ ও ভারতের সব লাইভ টিভি চ্যানেল, খেলা, খবর ও সিনেমা এক জায়গায়।">
+<title>Shamim IPTV â€” Live TV Streaming</title>
+<meta name="description" content="à¦¬à¦¾à¦‚à¦²à¦¾à¦¦à§‡à¦¶ à¦“ à¦­à¦¾à¦°à¦¤à§‡à¦° à¦¸à¦¬ à¦²à¦¾à¦‡à¦­ à¦Ÿà¦¿à¦­à¦¿ à¦šà§à¦¯à¦¾à¦¨à§‡à¦², à¦–à§‡à¦²à¦¾, à¦–à¦¬à¦° à¦“ à¦¸à¦¿à¦¨à§‡à¦®à¦¾ à¦à¦• à¦œà¦¾à¦¯à¦¼à¦—à¦¾à¦¯à¦¼à¥¤">
 <meta name="theme-color" content="#0d9e3f">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/style.css?v=20261108a">
+<link rel="stylesheet" href="css/style.css?v=20261108b">
 </head>
 <body>
 
@@ -43,27 +43,27 @@
 
     <div class="topbar-search">
       <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-3.8-3.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <input id="searchInput" type="text" placeholder="চ্যানেল খুঁজুন…" autocomplete="off">
-      <button id="searchClear" class="search-clear hidden" aria-label="মুছুন">✕</button>
+      <input id="searchInput" type="text" placeholder="à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦–à§à¦à¦œà§à¦¨â€¦" autocomplete="off">
+      <button id="searchClear" class="search-clear hidden" aria-label="à¦®à§à¦›à§à¦¨">âœ•</button>
     </div>
 
     <div class="topbar-right">
-      <button id="offToggleBtn" class="off-toggle-btn" title="অফ চ্যানেলও দেখাও" aria-pressed="false">
+      <button id="offToggleBtn" class="off-toggle-btn" title="à¦…à¦« à¦šà§à¦¯à¦¾à¦¨à§‡à¦²à¦“ à¦¦à§‡à¦–à¦¾à¦“" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path class="off-toggle-slash" d="M3 3l18 18"/></svg>
-        <span class="only-desktop-label off-toggle-label">শুধু চালু</span>
+        <span class="only-desktop-label off-toggle-label">à¦¶à§à¦§à§ à¦šà¦¾à¦²à§</span>
       </button>
-      <button id="toolsBtn" class="server-filter-btn tools-btn" title="Tools — M3U Checker ও সেভ করা প্লেলিস্ট" aria-pressed="false">
+      <button id="toolsBtn" class="server-filter-btn tools-btn" title="Tools â€” M3U Checker à¦“ à¦¸à§‡à¦­ à¦•à¦°à¦¾ à¦ªà§à¦²à§‡à¦²à¦¿à¦¸à§à¦Ÿ" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6z"/></svg>
         <span class="only-desktop-label">Tools</span>
       </button>
-      <button id="themeBtn" class="server-filter-btn theme-btn" type="button" title="লাইট থিমে যান" aria-label="থিম পরিবর্তন করুন" aria-pressed="false">
+      <button id="themeBtn" class="server-filter-btn theme-btn" type="button" title="à¦²à¦¾à¦‡à¦Ÿ à¦¥à¦¿à¦®à§‡ à¦¯à¦¾à¦¨" aria-label="à¦¥à¦¿à¦® à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦•à¦°à§à¦¨" aria-pressed="false">
         <svg class="ico-sun" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="ico-moon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
       <div class="server-filter-wrap">
-        <button id="serverFilterBtn" class="server-filter-btn" title="সার্ভার/সোর্স ফিল্টার">
+        <button id="serverFilterBtn" class="server-filter-btn" title="à¦¸à¦¾à¦°à§à¦­à¦¾à¦°/à¦¸à§‹à¦°à§à¦¸ à¦«à¦¿à¦²à§à¦Ÿà¦¾à¦°">
           <svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="4" width="18" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="18" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></svg>
-          <span class="only-desktop-label">সার্ভার</span>
+          <span class="only-desktop-label">à¦¸à¦¾à¦°à§à¦­à¦¾à¦°</span>
         </button>
         <div id="serverFilterMenu" class="server-filter-menu"></div>
       </div>
@@ -73,13 +73,13 @@
 
   <!-- Category chip bar -->
   <div class="chip-bar-wrap">
-    <button id="chipArrowLeft" class="chip-arrow chip-arrow-left hidden" aria-label="বামে স্ক্রল করুন">
+    <button id="chipArrowLeft" class="chip-arrow chip-arrow-left hidden" aria-label="à¦¬à¦¾à¦®à§‡ à¦¸à§à¦•à§à¦°à¦² à¦•à¦°à§à¦¨">
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <nav class="chip-bar" id="chipBar">
       <!-- filled by JS -->
     </nav>
-    <button id="chipArrowRight" class="chip-arrow chip-arrow-right" aria-label="ডানে স্ক্রল করুন">
+    <button id="chipArrowRight" class="chip-arrow chip-arrow-right" aria-label="à¦¡à¦¾à¦¨à§‡ à¦¸à§à¦•à§à¦°à¦² à¦•à¦°à§à¦¨">
       <svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
@@ -115,18 +115,18 @@
 
           <!-- Settings menu: channel list, servers, quality, screenshot, PiP -->
           <div class="cv-settings-menu" id="cv-settings-menu">
-            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> সেটিংস</div>
-            <button class="cv-settings-row" type="button" onclick="cvOpenChannelListFromSettings()"><i class="fa-solid fa-list"></i><span>চ্যানেল লিস্ট</span></button>
-            <div class="cv-settings-section">সার্ভার</div>
+            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸</div>
+            <button class="cv-settings-row" type="button" onclick="cvOpenChannelListFromSettings()"><i class="fa-solid fa-list"></i><span>à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦²à¦¿à¦¸à§à¦Ÿ</span></button>
+            <div class="cv-settings-section">à¦¸à¦¾à¦°à§à¦­à¦¾à¦°</div>
             <div class="cv-settings-servers" id="cv-server-list"></div>
             <div class="cv-settings-row cv-settings-row-select">
-              <i class="fa-solid fa-sliders"></i><span>কোয়ালিটি</span>
+              <i class="fa-solid fa-sliders"></i><span>à¦•à§‹à¦¯à¦¼à¦¾à¦²à¦¿à¦Ÿà¦¿</span>
               <select class="cv-quality-select" disabled="disabled" id="cv-quality-select" onchange="cvSetQuality(this.value)">
                 <option value="-1">Auto</option>
               </select>
             </div>
-            <button class="cv-settings-row" type="button" onclick="cvTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>স্ক্রিনশট</span></button>
-            <button class="cv-settings-row" type="button" onclick="cvTogglePip()"><i class="fa-solid fa-clone"></i><span>পিকচার-ইন-পিকচার</span></button>
+            <button class="cv-settings-row" type="button" onclick="cvTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>à¦¸à§à¦•à§à¦°à¦¿à¦¨à¦¶à¦Ÿ</span></button>
+            <button class="cv-settings-row" type="button" onclick="cvTogglePip()"><i class="fa-solid fa-clone"></i><span>à¦ªà¦¿à¦•à¦šà¦¾à¦°-à¦‡à¦¨-à¦ªà¦¿à¦•à¦šà¦¾à¦°</span></button>
           </div>
 
           <!-- Loading ring -->
@@ -156,7 +156,7 @@
                 <input class="cv-vol-slider" id="cv-vol-slider" max="1" min="0" oninput="cvSetVolume(this.value)" step="0.05" type="range" value="1">
               </div>
               <div class="cv-spacer"></div>
-              <button class="cv-btn cv-btn-settings" id="cv-settings-btn" onclick="cvToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
+              <button class="cv-btn cv-btn-settings" id="cv-settings-btn" onclick="cvToggleSettings(event)" title="à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸" aria-label="à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
               <button class="cv-btn cv-btn-fs" onclick="cvToggleFullscreen()" title="Fullscreen (F)"><i class="fa-solid fa-expand" id="cv-fs-icon"></i></button>
             </div>
           </div>
@@ -173,7 +173,7 @@
         </div>
       </div>
 
-      <!-- ===== SPLIT VIEW — second channel (slot B), same player UI as slot A ===== -->
+      <!-- ===== SPLIT VIEW â€” second channel (slot B), same player UI as slot A ===== -->
       <div class="dp-player-main-card-wrapper cv-shell split-shell hidden" id="splitShell">
         <div class="dp-player-aspect-frame split-frame" id="splitFrame">
           <video id="splitVideoNode" playsinline="playsinline" muted="muted"></video>
@@ -194,19 +194,19 @@
           </div>
 
           <div class="cv-settings-menu" id="sp-settings-menu">
-            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> সেটিংস</div>
-            <button class="cv-settings-row" type="button" onclick="spOpenChannelList()"><i class="fa-solid fa-list"></i><span>চ্যানেল লিস্ট</span></button>
-            <div class="cv-settings-section">সার্ভার</div>
+            <div class="cv-settings-head"><i class="fa-solid fa-gear"></i> à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸</div>
+            <button class="cv-settings-row" type="button" onclick="spOpenChannelList()"><i class="fa-solid fa-list"></i><span>à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦²à¦¿à¦¸à§à¦Ÿ</span></button>
+            <div class="cv-settings-section">à¦¸à¦¾à¦°à§à¦­à¦¾à¦°</div>
             <div class="cv-settings-servers" id="sp-server-list"></div>
             <div class="cv-settings-row cv-settings-row-select">
-              <i class="fa-solid fa-sliders"></i><span>কোয়ালিটি</span>
+              <i class="fa-solid fa-sliders"></i><span>à¦•à§‹à¦¯à¦¼à¦¾à¦²à¦¿à¦Ÿà¦¿</span>
               <select class="cv-quality-select" disabled="disabled" id="sp-quality-select" onchange="spSetQuality(this.value)">
                 <option value="-1">Auto</option>
               </select>
             </div>
-            <button class="cv-settings-row" type="button" onclick="spTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>স্ক্রিনশট</span></button>
-            <button class="cv-settings-row" type="button" onclick="spTogglePip()"><i class="fa-solid fa-clone"></i><span>পিকচার-ইন-পিকচার</span></button>
-            <button class="cv-settings-row cv-settings-close" type="button" onclick="closeSplitChannel()"><i class="fa-solid fa-xmark"></i><span>স্লট বন্ধ করুন</span></button>
+            <button class="cv-settings-row" type="button" onclick="spTakeScreenshot()"><i class="fa-solid fa-camera"></i><span>à¦¸à§à¦•à§à¦°à¦¿à¦¨à¦¶à¦Ÿ</span></button>
+            <button class="cv-settings-row" type="button" onclick="spTogglePip()"><i class="fa-solid fa-clone"></i><span>à¦ªà¦¿à¦•à¦šà¦¾à¦°-à¦‡à¦¨-à¦ªà¦¿à¦•à¦šà¦¾à¦°</span></button>
+            <button class="cv-settings-row cv-settings-close" type="button" onclick="closeSplitChannel()"><i class="fa-solid fa-xmark"></i><span>à¦¸à§à¦²à¦Ÿ à¦¬à¦¨à§à¦§ à¦•à¦°à§à¦¨</span></button>
           </div>
 
           <div class="cv-controls" id="sp-controls">
@@ -230,7 +230,7 @@
                 <input class="cv-vol-slider" id="sp-vol-slider" max="1" min="0" oninput="spSetVolume(this.value)" step="0.05" type="range" value="1">
               </div>
               <div class="cv-spacer"></div>
-              <button class="cv-btn cv-btn-settings" id="sp-settings-btn" onclick="spToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
+              <button class="cv-btn cv-btn-settings" id="sp-settings-btn" onclick="spToggleSettings(event)" title="à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸" aria-label="à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
               <button class="cv-btn cv-btn-fs" onclick="spToggleFullscreen()" title="Fullscreen"><i class="fa-solid fa-expand" id="sp-fs-icon"></i></button>
             </div>
           </div>
@@ -240,8 +240,8 @@
             <i class="fa-solid fa-play" style="font-size:20px;color:var(--cv-primary);"></i>
           </div>
           <div class="dp-meta-text-details">
-            <h3 class="dp-meta-channel-name" id="splitChannelTitle">—</h3>
-            <p class="dp-meta-status-text" id="sp-channel-status">—</p>
+            <h3 class="dp-meta-channel-name" id="splitChannelTitle">â€”</h3>
+            <p class="dp-meta-status-text" id="sp-channel-status">â€”</p>
           </div>
         </div>
       </div>
@@ -255,7 +255,7 @@
       <div id="scanProgress" class="scan-progress hidden">
         <div class="scan-progress-top">
           <span class="scan-spinner" aria-hidden="true"></span>
-          <span id="scanProgressText">চ্যানেল যাচাই করা হচ্ছে…</span>
+          <span id="scanProgressText">à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦¯à¦¾à¦šà¦¾à¦‡ à¦•à¦°à¦¾ à¦¹à¦šà§à¦›à§‡â€¦</span>
         </div>
         <div class="scan-progress-track"><div class="scan-progress-fill" id="scanProgressFill"></div></div>
       </div>
@@ -264,10 +264,10 @@
       <div class="grid icon-grid" id="mainGrid"></div>
 
       <div id="emptyState" class="empty-state hidden">
-        <div class="empty-mark">📡</div>
-        <p id="emptyStateText">কোনো চ্যানেল পাওয়া যায়নি</p>
-        <span id="emptyStateHint">অন্য নামে খুঁজে দেখুন</span>
-        <button id="emptyRevealOff" class="empty-reveal-btn hidden">অফ চ্যানেলগুলোও দেখাও</button>
+        <div class="empty-mark">ðŸ“¡</div>
+        <p id="emptyStateText">à¦•à§‹à¦¨à§‹ à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦ªà¦¾à¦“à¦¯à¦¼à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿</p>
+        <span id="emptyStateHint">à¦…à¦¨à§à¦¯ à¦¨à¦¾à¦®à§‡ à¦–à§à¦à¦œà§‡ à¦¦à§‡à¦–à§à¦¨</span>
+        <button id="emptyRevealOff" class="empty-reveal-btn hidden">à¦…à¦« à¦šà§à¦¯à¦¾à¦¨à§‡à¦²à¦—à§à¦²à§‹à¦“ à¦¦à§‡à¦–à¦¾à¦“</button>
       </div>
     </div>
   </div>
@@ -285,7 +285,7 @@
     </div>
   </section>
 
-  <!-- ===== TOOLS PAGE (saved playlists + M3U checker) — shown instead of the player/grid when "Tools" is open ===== -->
+  <!-- ===== TOOLS PAGE (saved playlists + M3U checker) â€” shown instead of the player/grid when "Tools" is open ===== -->
   <section id="toolsPage" class="tools-page">
     <div class="tools-wrap">
 
@@ -293,7 +293,7 @@
       <section id="adminPlayerSection" class="tools-card admin-player-card hidden">
         <div class="admin-player-head">
           <span id="adminPlaylistName">Admin Playlist</span>
-          <button id="adminPlayerClose" class="pl-store-btn del" type="button" title="বন্ধ করুন"><i class="fa-solid fa-xmark"></i></button>
+          <button id="adminPlayerClose" class="pl-store-btn del" type="button" title="à¦¬à¦¨à§à¦§ à¦•à¦°à§à¦¨"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="admin-player-body">
           <div class="admin-player-col" id="adminPlayerCol">
@@ -318,7 +318,7 @@
               </div>
               <div class="dp-meta-text-details">
                 <h3 class="dp-meta-channel-name" id="adminChannelTitle">Select a Channel</h3>
-                <p class="dp-meta-status-text" id="adminChannelStatus">—</p>
+                <p class="dp-meta-status-text" id="adminChannelStatus">â€”</p>
               </div>
             </div>
           </div>
@@ -326,7 +326,7 @@
             <div class="admin-chlist-head"><i class="fa-solid fa-satellite-dish"></i> Channels <span id="adminChCount" class="cs-count"></span></div>
             <div class="admin-chlist-search">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input id="adminSearch" oninput="adminRenderChannels(this.value)" placeholder="Search channels…" type="text">
+              <input id="adminSearch" oninput="adminRenderChannels(this.value)" placeholder="Search channelsâ€¦" type="text">
             </div>
             <div class="admin-chlist-body" id="adminChList"></div>
           </aside>
@@ -337,7 +337,7 @@
       <div class="tools-card">
         <div class="tools-card-head"><i class="fa-solid fa-code"></i> Code Playground</div>
         <div class="tools-card-body pg-entry-body">
-          <p class="pg-entry-text">HTML / CSS / JavaScript পেস্ট করুন — সাথে সাথে ডিজাইন দেখুন, PNG ইমেজ হিসেবে সেভ করুন, আর পুরো প্রজেক্ট হিসেবে রেখে দিন।</p>
+          <p class="pg-entry-text">HTML / CSS / JavaScript à¦ªà§‡à¦¸à§à¦Ÿ à¦•à¦°à§à¦¨ â€” à¦¸à¦¾à¦¥à§‡ à¦¸à¦¾à¦¥à§‡ à¦¡à¦¿à¦œà¦¾à¦‡à¦¨ à¦¦à§‡à¦–à§à¦¨, PNG à¦‡à¦®à§‡à¦œ à¦¹à¦¿à¦¸à§‡à¦¬à§‡ à¦¸à§‡à¦­ à¦•à¦°à§à¦¨, à¦†à¦° à¦ªà§à¦°à§‹ à¦ªà§à¦°à¦œà§‡à¦•à§à¦Ÿ à¦¹à¦¿à¦¸à§‡à¦¬à§‡ à¦°à§‡à¦–à§‡ à¦¦à¦¿à¦¨à¥¤</p>
           <button id="openPgBtn" class="btn-solid" type="button" onclick="window.openPlayground ? window.openPlayground() : alert('Playground script is not loaded. Hard-refresh the page (Ctrl + F5).')"><i class="fa-solid fa-rocket"></i> Open Playground</button>
         </div>
       </div>
@@ -356,7 +356,7 @@
       </div>
 
 
-      <!-- Admin Playlists (configured in app.js → ADMIN_PLAYLISTS) -->
+      <!-- Admin Playlists (configured in app.js â†’ ADMIN_PLAYLISTS) -->
       <div class="tools-card">
         <div class="tools-card-head"><i class="fa-solid fa-shield-halved"></i> Admin Playlists</div>
         <div class="tools-card-body">
@@ -386,7 +386,7 @@
             </div>
             <div class="chk-col">
               <label class="chk-label"><i class="fa-solid fa-table-list"></i> M3U / URL / HTML bulk</label>
-              <textarea id="chkBulk" class="tools-input chk-bulk" placeholder="M3U টেক্সট, প্লেলিস্ট/স্ট্রিম URL (প্রতি লাইনে একটা) বা HTML পেস্ট করুন…"></textarea>
+              <textarea id="chkBulk" class="tools-input chk-bulk" placeholder="M3U à¦Ÿà§‡à¦•à§à¦¸à¦Ÿ, à¦ªà§à¦²à§‡à¦²à¦¿à¦¸à§à¦Ÿ/à¦¸à§à¦Ÿà§à¦°à¦¿à¦® URL (à¦ªà§à¦°à¦¤à¦¿ à¦²à¦¾à¦‡à¦¨à§‡ à¦à¦•à¦Ÿà¦¾) à¦¬à¦¾ HTML à¦ªà§‡à¦¸à§à¦Ÿ à¦•à¦°à§à¦¨â€¦"></textarea>
               <div class="chk-btn-row">
                 <button id="chkCheckAllBtn" class="btn-solid" type="button"><i class="fa-solid fa-circle-check"></i> Check All</button>
                 <button id="chkBulkClearBtn" class="btn-danger" type="button"><i class="fa-solid fa-trash"></i> Clear</button>
@@ -424,14 +424,14 @@
         <div class="tools-card-body">
           <div class="cmp-grid">
             <div class="chk-col">
-              <label class="chk-label"><i class="fa-solid fa-1"></i> Playlist A — URL or paste</label>
+              <label class="chk-label"><i class="fa-solid fa-1"></i> Playlist A â€” URL or paste</label>
               <input id="cmpUrlA" class="tools-input" type="text" placeholder="https://example.com/a.m3u" autocomplete="off">
-              <textarea id="cmpTextA" class="tools-input chk-bulk" placeholder="…অথবা M3U টেক্সট পেস্ট করুন"></textarea>
+              <textarea id="cmpTextA" class="tools-input chk-bulk" placeholder="â€¦à¦…à¦¥à¦¬à¦¾ M3U à¦Ÿà§‡à¦•à§à¦¸à¦Ÿ à¦ªà§‡à¦¸à§à¦Ÿ à¦•à¦°à§à¦¨"></textarea>
             </div>
             <div class="chk-col">
-              <label class="chk-label"><i class="fa-solid fa-2"></i> Playlist B — URL or paste</label>
+              <label class="chk-label"><i class="fa-solid fa-2"></i> Playlist B â€” URL or paste</label>
               <input id="cmpUrlB" class="tools-input" type="text" placeholder="https://example.com/b.m3u" autocomplete="off">
-              <textarea id="cmpTextB" class="tools-input chk-bulk" placeholder="…অথবা M3U টেক্সট পেস্ট করুন"></textarea>
+              <textarea id="cmpTextB" class="tools-input chk-bulk" placeholder="â€¦à¦…à¦¥à¦¬à¦¾ M3U à¦Ÿà§‡à¦•à§à¦¸à¦Ÿ à¦ªà§‡à¦¸à§à¦Ÿ à¦•à¦°à§à¦¨"></textarea>
             </div>
           </div>
           <div class="chk-btn-row" style="margin-top:12px;">
@@ -462,7 +462,7 @@
     <div class="pg-wrap">
 
       <div class="pg-topbar">
-        <button id="pgBackBtn" class="btn-outline pg-back" type="button" title="Tools-এ ফিরে যান"><i class="fa-solid fa-arrow-left"></i> Tools</button>
+        <button id="pgBackBtn" class="btn-outline pg-back" type="button" title="Tools-à¦ à¦«à¦¿à¦°à§‡ à¦¯à¦¾à¦¨"><i class="fa-solid fa-arrow-left"></i> Tools</button>
         <input id="pgName" class="tools-input pg-name" type="text" placeholder="Project name" autocomplete="off">
         <div class="pg-actions">
           <button id="pgRunBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Run</button>
@@ -506,9 +506,9 @@
   <!-- ===== FOOTER (full width, below player + sidebar) ===== -->
   <footer class="site-footer">
     <div class="footer-side footer-left">
-      <div class="visitor-counter" id="visitorCounter" title="মোট ভিজিট">
+      <div class="visitor-counter" id="visitorCounter" title="à¦®à§‹à¦Ÿ à¦­à¦¿à¦œà¦¿à¦Ÿ">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-        <span id="visitorCountText">…</span>
+        <span id="visitorCountText">â€¦</span>
       </div>
     </div>
     <div class="footer-center">
@@ -526,34 +526,34 @@
   </footer>
 </div>
 
-<!-- ===== "চ্যানেল প্লে হচ্ছে না?" HELP DRAWER ===== -->
-<button id="helpFab" class="help-fab" title="চ্যানেল প্লে হচ্ছে না?">
+<!-- ===== "à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦ªà§à¦²à§‡ à¦¹à¦šà§à¦›à§‡ à¦¨à¦¾?" HELP DRAWER ===== -->
+<button id="helpFab" class="help-fab" title="à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦ªà§à¦²à§‡ à¦¹à¦šà§à¦›à§‡ à¦¨à¦¾?">
   <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 17v.01M12 14c0-2.5 2.5-2.5 2.5-5A2.5 2.5 0 0 0 12 6.5 2.5 2.5 0 0 0 9.5 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
 </button>
 
 <div id="helpOverlay" class="help-overlay hidden">
   <div class="help-sheet">
     <div class="help-sheet-head">
-      <h3>📺 চ্যানেল প্লে হচ্ছে না?</h3>
-      <button id="helpClose" class="icon-btn" aria-label="বন্ধ করুন">✕</button>
+      <h3>ðŸ“º à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦ªà§à¦²à§‡ à¦¹à¦šà§à¦›à§‡ à¦¨à¦¾?</h3>
+      <button id="helpClose" class="icon-btn" aria-label="à¦¬à¦¨à§à¦§ à¦•à¦°à§à¦¨">âœ•</button>
     </div>
     <div class="help-sheet-body">
-      <p class="help-lead">সাধারণত এই কারণগুলোর জন্য চ্যানেল লোড হয় না:</p>
+      <p class="help-lead">à¦¸à¦¾à¦§à¦¾à¦°à¦£à¦¤ à¦à¦‡ à¦•à¦¾à¦°à¦£à¦—à§à¦²à§‹à¦° à¦œà¦¨à§à¦¯ à¦šà§à¦¯à¦¾à¦¨à§‡à¦² à¦²à§‹à¦¡ à¦¹à¦¯à¦¼ à¦¨à¦¾:</p>
       <ul class="help-list">
-        <li>স্ট্রিম সাময়িকভাবে ডাউন বা সোর্স চ্যানেলটি অফলাইনে আছে</li>
-        <li>ইন্টারনেট সংযোগ দুর্বল বা মাঝপথে বিচ্ছিন্ন হয়েছে</li>
-        <li>ব্রাউজারের পুরনো ক্যাশ সমস্যা তৈরি করছে</li>
-        <li>VPN/Proxy/Ad-blocker কিছু স্ট্রিম ব্লক করে দিচ্ছে</li>
+        <li>à¦¸à§à¦Ÿà§à¦°à¦¿à¦® à¦¸à¦¾à¦®à¦¯à¦¼à¦¿à¦•à¦­à¦¾à¦¬à§‡ à¦¡à¦¾à¦‰à¦¨ à¦¬à¦¾ à¦¸à§‹à¦°à§à¦¸ à¦šà§à¦¯à¦¾à¦¨à§‡à¦²à¦Ÿà¦¿ à¦…à¦«à¦²à¦¾à¦‡à¦¨à§‡ à¦†à¦›à§‡</li>
+        <li>à¦‡à¦¨à§à¦Ÿà¦¾à¦°à¦¨à§‡à¦Ÿ à¦¸à¦‚à¦¯à§‹à¦— à¦¦à§à¦°à§à¦¬à¦² à¦¬à¦¾ à¦®à¦¾à¦à¦ªà¦¥à§‡ à¦¬à¦¿à¦šà§à¦›à¦¿à¦¨à§à¦¨ à¦¹à¦¯à¦¼à§‡à¦›à§‡</li>
+        <li>à¦¬à§à¦°à¦¾à¦‰à¦œà¦¾à¦°à§‡à¦° à¦ªà§à¦°à¦¨à§‹ à¦•à§à¦¯à¦¾à¦¶ à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦¤à§ˆà¦°à¦¿ à¦•à¦°à¦›à§‡</li>
+        <li>VPN/Proxy/Ad-blocker à¦•à¦¿à¦›à§ à¦¸à§à¦Ÿà§à¦°à¦¿à¦® à¦¬à§à¦²à¦• à¦•à¦°à§‡ à¦¦à¦¿à¦šà§à¦›à§‡</li>
       </ul>
-      <p class="help-lead">✅ যা করে দেখতে পারো:</p>
+      <p class="help-lead">âœ… à¦¯à¦¾ à¦•à¦°à§‡ à¦¦à§‡à¦–à¦¤à§‡ à¦ªà¦¾à¦°à§‹:</p>
       <ul class="help-steps">
-        <li>ইন্টারনেট কানেকশন পরীক্ষা করো</li>
-        <li>পেজটা রিফ্রেশ/রিলোড করো</li>
-        <li>প্লেয়ারের সার্ভার-বাটন থেকে অন্য সার্ভার চেষ্টা করো (📡 আইকন)</li>
-        <li>সম্ভব হলে অন্য নেটওয়ার্কে (Wi-Fi/মোবাইল ডেটা) চেষ্টা করো</li>
-        <li>VPN/Ad-blocker চালু থাকলে সাময়িক বন্ধ রাখো</li>
+        <li>à¦‡à¦¨à§à¦Ÿà¦¾à¦°à¦¨à§‡à¦Ÿ à¦•à¦¾à¦¨à§‡à¦•à¦¶à¦¨ à¦ªà¦°à§€à¦•à§à¦·à¦¾ à¦•à¦°à§‹</li>
+        <li>à¦ªà§‡à¦œà¦Ÿà¦¾ à¦°à¦¿à¦«à§à¦°à§‡à¦¶/à¦°à¦¿à¦²à§‹à¦¡ à¦•à¦°à§‹</li>
+        <li>à¦ªà§à¦²à§‡à¦¯à¦¼à¦¾à¦°à§‡à¦° à¦¸à¦¾à¦°à§à¦­à¦¾à¦°-à¦¬à¦¾à¦Ÿà¦¨ à¦¥à§‡à¦•à§‡ à¦…à¦¨à§à¦¯ à¦¸à¦¾à¦°à§à¦­à¦¾à¦° à¦šà§‡à¦·à§à¦Ÿà¦¾ à¦•à¦°à§‹ (ðŸ“¡ à¦†à¦‡à¦•à¦¨)</li>
+        <li>à¦¸à¦®à§à¦­à¦¬ à¦¹à¦²à§‡ à¦…à¦¨à§à¦¯ à¦¨à§‡à¦Ÿà¦“à¦¯à¦¼à¦¾à¦°à§à¦•à§‡ (Wi-Fi/à¦®à§‹à¦¬à¦¾à¦‡à¦² à¦¡à§‡à¦Ÿà¦¾) à¦šà§‡à¦·à§à¦Ÿà¦¾ à¦•à¦°à§‹</li>
+        <li>VPN/Ad-blocker à¦šà¦¾à¦²à§ à¦¥à¦¾à¦•à¦²à§‡ à¦¸à¦¾à¦®à¦¯à¦¼à¦¿à¦• à¦¬à¦¨à§à¦§ à¦°à¦¾à¦–à§‹</li>
       </ul>
-      <div class="help-note">কয়েক মিনিট পর আবার চেষ্টা করলে বেশিরভাগ সমস্যা এমনিতেই ঠিক হয়ে যায়।</div>
+      <div class="help-note">à¦•à¦¯à¦¼à§‡à¦• à¦®à¦¿à¦¨à¦¿à¦Ÿ à¦ªà¦° à¦†à¦¬à¦¾à¦° à¦šà§‡à¦·à§à¦Ÿà¦¾ à¦•à¦°à¦²à§‡ à¦¬à§‡à¦¶à¦¿à¦°à¦­à¦¾à¦— à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦à¦®à¦¨à¦¿à¦¤à§‡à¦‡ à¦ à¦¿à¦• à¦¹à¦¯à¦¼à§‡ à¦¯à¦¾à¦¯à¦¼à¥¤</div>
     </div>
   </div>
 </div>
@@ -563,6 +563,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mpegts.js/1.7.3/mpegts.js"></script>
-<script src="js/app.js?v=20261108a"></script>
+<script src="js/app.js?v=20261108b"></script>
 </body>
 </html>
+
