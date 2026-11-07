@@ -22,13 +22,46 @@ const PLAYLISTS = {
 
 // playlist প্যারামিটার না দিলে কোনটা দেখাবে (ডিফল্ট)
 const DEFAULT_PLAYLIST_KEY = "shiptv";
-// ===================================================
+
+// ---------------------------------------------------------
+// নিরাপত্তা: ?url= দিয়ে শুধু এই হোস্টগুলোই ফেচ করা যাবে (সাবডোমেইনসহ)।
+// খোলা প্রক্সি হলে যে কেউ আপনার ডোমেইন দিয়ে যেকোনো ট্রাফিক চালাতে পারবে,
+// তাই নতুন কোনো সোর্স প্রক্সি করতে চাইলে তার ডোমেইন এখানে যোগ করুন।
+// ---------------------------------------------------------
+const ALLOWED_HOST_SUFFIXES = [
+  "fancode.com",          // FanCode / FanCode-BD স্ট্রিম CDN
+  "githubusercontent.com" // raw / gist / objects.githubusercontent.com
+];
+
+// আপস্ট্রিম খুব ধীর হলে রিকোয়েস্ট আটকে না থাকার জন্য
+const UPSTREAM_TIMEOUT_MS = 20000;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': '*'
 };
+
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+function isAllowedTarget(rawUrl) {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase();
+    return ALLOWED_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith('.' + suffix));
+  } catch (e) {
+    return false;
+  }
+}
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function onRequest(context) {
   const { request } = context;
@@ -64,10 +97,8 @@ export async function onRequest(context) {
     }
 
     try {
-      const response = await fetch(selectedPlaylistUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        }
+      const response = await fetchWithTimeout(selectedPlaylistUrl, {
+        headers: { 'User-Agent': USER_AGENT }
       });
 
       if (!response.ok) {
@@ -100,7 +131,7 @@ export async function onRequest(context) {
       });
 
     } catch (error) {
-      return jsonResponse({ error: error.message }, 500);
+      return errorResponse(error);
     }
   }
 
@@ -112,33 +143,56 @@ export async function onRequest(context) {
     return jsonResponse({ error: 'No URL provided' }, 400);
   }
 
-  try {
-    const targetOrigin = new URL(targetUrl).origin;
+  // শুধু অনুমোদিত হোস্ট
+  if (!isAllowedTarget(targetUrl)) {
+    return jsonResponse({ error: 'Blocked: this host is not allowed by the proxy' }, 403);
+  }
 
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Referer': targetOrigin + '/',
-        'Origin': targetOrigin
-      }
-    });
+  try {
+    const target = new URL(targetUrl);
+    const targetOrigin = target.origin;
+
+    // Range শুধু মিডিয়া ফাইলের জন্য পাঠানো হয়। প্লেলিস্টে Range পাঠালে
+    // আংশিক টেক্সট আসে আর URL রিরাইটিং ভেঙে যায়।
+    const isPlaylistUrl = /\.m3u8?(\?|$)/i.test(targetUrl);
+
+    const upstreamHeaders = {
+      'User-Agent': USER_AGENT,
+      'Referer': targetOrigin + '/',
+      'Origin': targetOrigin
+    };
+
+    const rangeHeader = request.headers.get('Range');
+    if (rangeHeader && !isPlaylistUrl) upstreamHeaders['Range'] = rangeHeader;
+
+    const response = await fetchWithTimeout(targetUrl, { headers: upstreamHeaders });
 
     if (!response.ok) {
       return jsonResponse({ error: `Stream failed (${response.status})` }, response.status);
     }
 
     const contentType = response.headers.get('content-type') || '';
-    const finalUrl = response.url;
+    const finalUrl = response.url || targetUrl;
 
-    const isPlaylist = targetUrl.includes('.m3u') ||
+    const isPlaylist = isPlaylistUrl ||
                        contentType.includes('mpegurl') ||
-                       contentType.includes('m3u') ||
-                       contentType.includes('text/plain');
+                       contentType.includes('application/vnd.apple');
 
     if (isPlaylist) {
+      // 206 (partial) হলে টেক্সট রিরাইট করা নিরাপদ নয় — যেমন আছে পাঠিয়ে দিই।
+      if (response.status === 206) {
+        return new Response(response.body, {
+          status: 206,
+          headers: {
+            ...CORS_HEADERS,
+            'Content-Type': contentType || 'application/vnd.apple.mpegurl; charset=utf-8'
+          }
+        });
+      }
+
       const text = await response.text();
 
-      if (text.trim().startsWith('#EXTM3U') || targetUrl.includes('.m3u8')) {
+      if (text.trim().startsWith('#EXTM3U') || isPlaylistUrl) {
         const lines = text.split('\n');
         const rewrittenLines = lines.map(line => {
           const trimmed = line.trim();
@@ -184,19 +238,44 @@ export async function onRequest(context) {
       });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    return new Response(arrayBuffer, {
-      status: 200,
-      headers: {
-        ...CORS_HEADERS,
-        'Content-Type': contentType || 'video/mp2t',
-        'Cache-Control': 'public, max-age=3600'
-      }
+    // ---------------------------------------------------------
+    // বাইনারি (HLS সেগমেন্ট / সরাসরি স্ট্রিম)
+    // এখানে arrayBuffer() করলে অসীম লাইভ স্ট্রিম কখনো শেষ হয় না —
+    // তাই বডি সরাসরিই স্ট্রিম করে পাঠানো হয় (কম মেমরি, কম লেটেন্সি)।
+    // 206 / Content-Range-ও পাস-থ্রু করা হয় যাতে VOD-এ seek কাজ করে।
+    // ---------------------------------------------------------
+    const outHeaders = {
+      ...CORS_HEADERS,
+      'Content-Type': contentType || 'video/mp2t',
+      'Cache-Control': 'public, max-age=3600'
+    };
+
+    const acceptRanges = response.headers.get('accept-ranges');
+    if (acceptRanges) outHeaders['Accept-Ranges'] = acceptRanges;
+
+    const contentRange = response.headers.get('content-range');
+    if (contentRange) outHeaders['Content-Range'] = contentRange;
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) outHeaders['Content-Length'] = contentLength;
+
+    return new Response(response.body, {
+      status: response.status === 206 ? 206 : 200,
+      headers: outHeaders
     });
 
   } catch (error) {
-    return jsonResponse({ error: error.message }, 500);
+    return errorResponse(error);
   }
+}
+
+function errorResponse(error) {
+  const message = (error && error.message) || 'Unknown error';
+  const aborted = (error && error.name === 'AbortError') || /abort/i.test(message);
+  return jsonResponse(
+    { error: aborted ? 'Upstream timeout' : message },
+    aborted ? 504 : 500
+  );
 }
 
 function jsonResponse(obj, status) {
