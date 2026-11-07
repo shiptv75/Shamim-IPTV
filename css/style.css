@@ -1440,3 +1440,133 @@ html[data-theme="light"] .pg-code{ background:#f7f9fc; color:#1b2733; }
   .pg-actions{ margin-left:0; width:100%; }
   .pg-entry-text{ max-width:100%; }
 }
+
+/* ============================================================
+   LIVE EVENTS — rebuilt to match the rest of the site
+   (same surface / border / green accent / card language as the
+   channel grid and the player panels; no blue block, no gold text)
+   ============================================================ */
+
+.live-events-section{
+  margin: 20px 20px 20px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0,201,122,.08);
+}
+
+.live-events-header{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  height:auto; margin:0 0 14px; padding:0 0 12px;
+  border:0; border-bottom:1px solid var(--line);
+  border-radius:0; background:none; overflow:visible;
+}
+
+.le-label{
+  display:flex; align-items:center; gap:9px; margin:0; padding:0;
+  background:none; color: var(--text);
+  font-family: var(--font-display); font-weight:700; font-size:15px;
+  letter-spacing:.3px; white-space:nowrap;
+}
+
+.le-dot{
+  width:8px; height:8px; border-radius:50%; background: var(--danger);
+  animation: le-pulse 1.6s infinite;
+}
+@keyframes le-pulse{
+  0%{ box-shadow:0 0 0 0 rgba(239,68,68,.6); }
+  70%{ box-shadow:0 0 0 7px rgba(239,68,68,0); }
+  100%{ box-shadow:0 0 0 0 rgba(239,68,68,0); }
+}
+
+.le-count{
+  font-family: var(--font-mono); font-size:10.5px; font-weight:700; line-height:1;
+  padding:4px 8px; border-radius:999px;
+  color: var(--sig); background: rgba(0,201,122,.12);
+  border:1px solid rgba(0,201,122,.35);
+}
+.le-count:empty{ display:none; }
+
+/* the ticker becomes a quiet pill, not a gold marquee */
+.updates-ticker{
+  flex:1 1 260px; min-width:0; height:34px;
+  border:1px solid var(--line); border-radius:999px;
+  background: var(--surface-2); overflow:hidden;
+}
+.updates-ticker.hidden{ display:none; }
+
+.updates-ticker-item{ height:100%; padding:0 18px; gap:8px; }
+.updates-ticker-item:hover{ background: rgba(0,201,122,.10); }
+.updates-ticker-item::after{
+  top:25%; height:50%; width:1px; border-radius:1px;
+  background: var(--line); box-shadow:none;
+}
+.updates-ticker-item img,
+.updates-ticker-item .ut-fallback{ width:20px; height:20px; border-radius:5px; }
+.updates-ticker-item .ut-event{
+  font-size:12px; font-weight:700; color: var(--text); letter-spacing:.1px;
+}
+.updates-ticker-item .ut-dot{ color: var(--muted-2); }
+.updates-ticker-item .ut-chan{ gap:6px; }
+.updates-ticker-item .ut-chan-name{
+  font-size:12px; font-weight:600; color: var(--muted); opacity:1;
+}
+
+/* cards area: plain, no blue frame */
+.live-events-body{
+  border:0; padding:0; background:none; min-height:0;
+}
+.live-events-body .row-scroll{ margin:0; padding:2px 2px 6px; gap:12px; }
+
+/* card matches .chan-card in the grid, just fixed-width */
+.le-card{
+  flex:0 0 auto; width:148px; scroll-snap-align:start;
+  display:flex; flex-direction:column; gap:8px;
+  padding:10px;
+  background: var(--surface);
+  border:1px solid var(--line); border-radius: var(--r-md);
+  cursor:pointer;
+  transition: transform .15s ease, border-color .15s, box-shadow .15s;
+}
+.le-card:hover{
+  transform: translateY(-3px);
+  border-color: var(--sig);
+  box-shadow: 0 10px 26px -12px rgba(0,201,122,.55);
+}
+.le-logo{
+  position:relative; width:100%; aspect-ratio:1;
+  border-radius:12px; border:1px solid var(--line);
+  background:#EDF2F7;
+  display:flex; align-items:center; justify-content:center;
+  padding:12%; overflow:hidden;
+}
+.le-logo img{ width:100%; height:100%; object-fit:contain; }
+.le-logo .chan-logo-fallback{
+  width:100%; text-align:center;
+  font-family: var(--font-display); font-weight:700; font-size:15px; color: var(--sig);
+}
+.le-badge{
+  position:absolute; top:6px; left:6px; z-index:2;
+  font-family: var(--font-mono); font-size:8px; font-weight:800; letter-spacing:.6px;
+  padding:2px 6px; border-radius:5px;
+  background: var(--danger); color:#fff;
+}
+.le-name{
+  font-size:12px; font-weight:600; line-height:1.3; text-align:center; color: var(--text);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  overflow-wrap:anywhere; min-height:31px;
+}
+.le-group{
+  font-family: var(--font-mono); font-size:9.5px; letter-spacing:.4px; text-transform:uppercase;
+  color: var(--muted); text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+@media (max-width: 860px){
+  .live-events-section{ margin:16px 12px; padding:14px 14px 16px; }
+  .live-events-header{ gap:10px; }
+  .updates-ticker{ flex-basis:100%; height:32px; }
+  .le-card{ width:132px; }
+  .le-name{ font-size:11px; min-height:29px; }
+}
