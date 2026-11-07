@@ -3554,12 +3554,10 @@ function setupAutoFloat(pane, opts = {}) {
   let spacer = null;
   let backBtn = null;
   let ticking = false;
-  let slotTop = 0; // document Y of the player's own slot
+  let lastDocTop = 0;
 
   function canFloat() { return !opts.canFloat || !!opts.canFloat(); }
 
-  // Layout position (sticky/fixed ignored), independent of scroll or of when
-  // the page was measured.
   function docTopOf(el) {
     let y = 0;
     let node = el;
@@ -3567,11 +3565,19 @@ function setupAutoFloat(pane, opts = {}) {
     return y;
   }
 
+  function isAtBottom() {
+    const doc = document.documentElement;
+    if (!doc || typeof doc.getBoundingClientRect !== "function") return false;
+    if (doc.scrollHeight <= window.innerHeight + 120) return false; // nothing to scroll
+    const r = doc.getBoundingClientRect();
+    return r.bottom <= window.innerHeight + 160;
+  }
+
   function enter() {
     if (floating || !canFloat()) return;
     const rect = pane.getBoundingClientRect();
     if (!rect.height) return;
-    slotTop = docTopOf(pane);
+    lastDocTop = docTopOf(pane);
     floating = true;
     spacer = document.createElement("div");
     spacer.className = "float-spacer";
@@ -3587,7 +3593,7 @@ function setupAutoFloat(pane, opts = {}) {
     backBtn.title = "আসল জায়গায় ফিরে যান";
     backBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     backBtn.addEventListener("click", () => {
-      window.scrollTo({ top: Math.max(0, slotTop - 140), behavior: "smooth" });
+      window.scrollTo({ top: Math.max(0, lastDocTop - 140), behavior: "smooth" });
     });
     pane.appendChild(backBtn);
   }
@@ -3602,13 +3608,16 @@ function setupAutoFloat(pane, opts = {}) {
     backBtn = null;
   }
 
+  // IMPORTANT: this page scrolls inside <body> (html,body{height:100%;
+  // overflow-x:hidden} makes body a scroll container), so window.scrollY is
+  // always 0. Everything below is therefore based on element positions.
   function update() {
     if (floating) {
-      // A fixed-position element reports offsetParent === null, so this branch
-      // must not use that as a "hidden" test.
       if (!canFloat()) { leave(); return; }
       if (!pane.getBoundingClientRect().height) { leave(); return; } // really hidden
-      if (window.scrollY < slotTop + 20) leave(); // scrolled back to the player
+      if (isAtBottom()) return; // stay floating while the page is at its end
+      const slot = spacer && spacer.getBoundingClientRect();
+      if (slot && slot.top >= 40) leave(); // the player's own spot is back on screen
       return;
     }
 
@@ -3616,15 +3625,8 @@ function setupAutoFloat(pane, opts = {}) {
     if (!canFloat()) return;
     if (!pane.offsetHeight) return;
 
-    // Float when the visitor scrolls past the player's slot — and also once the
-    // page has reached the bottom, so the video always stays on screen.
-    // (A player taller than the viewport never sticks, so this cannot rely on
-    // sticky positioning.)
-    const scrolledPast = window.scrollY > docTopOf(pane) + 120;
-    const doc = document.documentElement;
-    const atBottom = window.scrollY > 0 && doc &&
-      (window.scrollY + window.innerHeight >= doc.scrollHeight - 120);
-    if (scrolledPast || atBottom) enter();
+    const top = pane.getBoundingClientRect().top;
+    if (top < 40 || isAtBottom()) enter();
   }
 
   function onScroll() {
@@ -3633,9 +3635,14 @@ function setupAutoFloat(pane, opts = {}) {
     requestAnimationFrame(() => { ticking = false; update(); });
   }
 
-  window.addEventListener("scroll", onScroll, { passive: true });
+  // capture:true receives scroll events from ANY scrolling element — including
+  // <body> — which normal window listeners do not see.
+  window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+  document.addEventListener("scroll", onScroll, { passive: true, capture: true });
   window.addEventListener("resize", onScroll);
   requestAnimationFrame(update);
+  // light safety net for layout changes that do not fire a scroll event
+  setInterval(() => { if (!document.hidden) update(); }, 600);
 
   return { refresh() { update(); }, leave, isFloating: () => floating };
 }
