@@ -949,7 +949,7 @@ async function probeMediaPlaylist(text, base, proxied) {
   }
 
   const encrypted = !!keyMethod && keyMethod !== "NONE";
-  const request = (u) => (proxied ? proxyWrapStream(u) : u);
+  const request = (u) => probeRequestUrl(u, proxied);
 
   // The LAST segment is the live edge and is the one certain to still exist: on
   // a live playlist the FIRST segment is the oldest and may already have aged
@@ -980,6 +980,15 @@ async function probeMediaPlaylist(text, base, proxied) {
   return { ok: false, reason: "no-segment" };
 }
 
+// A manifest fetched through our proxy comes back with every URL already
+// rewritten to /api/proxy?url=... . Wrapping those a second time would make the
+// proxy fetch itself — and the proxy's allowlist rejects that, so the whole
+// channel would be marked OFF even though it plays. Leave them untouched.
+function probeRequestUrl(url, proxied) {
+  if (typeof url === "string" && url.startsWith(STREAM_PROXY_BASE)) return url;
+  return proxied ? proxyWrapStream(url) : url;
+}
+
 async function probeHlsChain(requestUrl, proxied) {
   let base = realUrl(requestUrl);
   let text = await probePlaylistText(requestUrl);
@@ -992,7 +1001,7 @@ async function probeHlsChain(requestUrl, proxied) {
     const variant = variants.find((v) => probeCodecsPlayable(v.codecs)) || null;
     if (!variant) return { ok: false, reason: "codec-unsupported" };
     base = variant.url;
-    text = await probePlaylistText(proxied ? proxyWrapStream(base) : base);
+    text = await probePlaylistText(probeRequestUrl(base, proxied));
     if (!text) return { ok: false, reason: "variant-unreachable" };
   }
   if (/#EXT-X-STREAM-INF/.test(text)) return { ok: false, reason: "playlist-too-deep" };
