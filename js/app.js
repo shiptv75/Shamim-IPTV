@@ -1731,6 +1731,7 @@ function renderUpdatesTicker() {
   if (!items.length) {
     ticker.classList.add("hidden");
     track.innerHTML = "";
+    syncLiveEventsVisibility();
     return;
   }
 
@@ -1770,9 +1771,21 @@ function renderUpdatesTicker() {
     let t = null;
     window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(renderUpdatesTicker, 250); });
   }
+  syncLiveEventsVisibility();
 }
 
 // ---------- Live Events row (SonyLiv / FanCode-BD / Tapmad-Events) ----------
+// Hide the whole section when there is nothing live and no ticker to show,
+// instead of leaving an empty framed block on the page.
+function syncLiveEventsVisibility() {
+  const section = $("#liveEventsSection");
+  const row = $("#liveEventsRow");
+  const ticker = $("#updatesTicker");
+  if (!section) return;
+  const hasCards = !!(row && row.children.length);
+  const hasTicker = !!(ticker && !ticker.classList.contains("hidden") && ticker.querySelector(".updates-ticker-item"));
+  section.classList.toggle("hidden", !hasCards && !hasTicker);
+}
 let _liveEventsAutoScrollTimer = null;
 
 function renderLiveEventsRow() {
@@ -1791,21 +1804,26 @@ function renderLiveEventsRow() {
 
   row.innerHTML = "";
 
+  const countEl = $("#leCount");
+  if (countEl) countEl.textContent = list.length ? String(list.length) : "";
+
   if (!list.length) {
     stopLiveEventsAutoScroll();
-    return; // row stays empty — section/title/border are still shown
+    syncLiveEventsVisibility();
+    return; // nothing live right now — the section hides itself
   }
 
   list.forEach((chan) => {
     const card = document.createElement("div");
-    card.className = "mini-chan-card live-event-card";
+    card.className = "le-card";
+    const initials = chan.name.slice(0, 2).toUpperCase();
     const logoHtml = chan.logo
-      ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${chan.name.slice(0, 2).toUpperCase()}</div>'">`
-      : `<div class="chan-logo-fallback">${chan.name.slice(0, 2).toUpperCase()}</div>`;
+      ? `<img src="${chan.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;chan-logo-fallback&quot;>${initials}</div>'">`
+      : `<div class="chan-logo-fallback">${initials}</div>`;
     card.innerHTML = `
-      <div class="rc-icon-box">${logoHtml}</div>
-      <div class="rc-name">${chan.name}</div>
-      <div class="rc-grp">${chan.group}</div>
+      <div class="le-logo"><span class="le-badge">LIVE</span>${logoHtml}</div>
+      <div class="le-name">${chan.name}</div>
+      <div class="le-group">${chan.group}</div>
     `;
     card.addEventListener("click", () => openPlayer(chan));
     row.appendChild(card);
@@ -1816,6 +1834,7 @@ function renderLiveEventsRow() {
   } else {
     stopLiveEventsAutoScroll();
   }
+  syncLiveEventsVisibility();
 }
 
 function startLiveEventsAutoScroll(row) {
