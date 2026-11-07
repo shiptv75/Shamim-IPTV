@@ -7,7 +7,7 @@ const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/h
 // ---- Live Events playlists (rendered in their own auto-scrolling "Live Events" bar) ----
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
-const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.m3u";
+const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.json";
 const M3U_URL_CRICHD = "https://raw.githubusercontent.com/srhady/CricketLive/refs/heads/main/playlist.m3u";
 const M3U_URL_WILLOW = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
 const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
@@ -17,7 +17,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
-  { url: M3U_URL_FANCODE_BD, type: "m3u", source: "FanCode_BD" },
+  { url: M3U_URL_FANCODE_BD, type: "json", source: "FanCode_BD" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
   { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
   { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
@@ -376,6 +376,28 @@ async function fetchOnePlaylist(sourceDef) {
 // disabled or freshly marked "new" carry that through as tvg-off / tvg-new
 // attributes so the UI can show "বন্ধ" / "NEW" badges.
 function jsonPlaylistToM3U(data) {
+  // FanCode-BD publishes a "matches" payload instead of the HridoyTV shape:
+  // { matches: [{ title, match_name, src, event_category, stream_url, is_drm }] }
+  // Convert it to M3U so it flows through the same parser/merger as everything
+  // else. DRM-protected matches are skipped — they can never play here.
+  if (Array.isArray(data.matches)) {
+    const lines = ["#EXTM3U"];
+    let count = 0;
+    const seen = new Set();
+    data.matches.forEach((m) => {
+      if (!m || !m.stream_url || m.is_drm === true) return;
+      const name = String(m.match_name || m.title || "Live Event").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      const logo = String(m.src || "").replace(/"/g, "%22").trim();
+      const group = String(m.event_category || "Live Events").replace(/"/g, "'").trim();
+      lines.push(`#EXTINF:-1 tvg-logo="${logo}" group-title="${group}",${name}`);
+      lines.push(String(m.stream_url).trim());
+      count++;
+    });
+    return count ? lines.join("\n") : null;
+  }
+
   const all = [...(data.customChannels || []), ...(data.wantedChannels || [])];
   const lines = ["#EXTM3U"];
   let count = 0;
