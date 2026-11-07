@@ -3550,23 +3550,29 @@ function adminClosePlayer() {
 // ------------------------------------------------------------
 function setupAutoFloat(pane, opts = {}) {
   if (!pane) return null;
-  const pad = opts.thresholdPad != null ? opts.thresholdPad : 120;
   let floating = false;
   let spacer = null;
   let backBtn = null;
-  let staticTop = 0;
   let ticking = false;
+  let lastDocTop = 0;
 
-  function measure() {
-    if (floating || pane.offsetParent === null) return;
-    staticTop = window.scrollY + pane.getBoundingClientRect().top;
+  function canFloat() { return !opts.canFloat || !!opts.canFloat(); }
+
+  // Document position of the pane, ignoring sticky/fixed positioning — summing
+  // offsetTop up the offsetParent chain gives the layout position no matter
+  // where the page is scrolled or whether the element is currently stuck.
+  function docTopOf(el) {
+    let y = 0;
+    let node = el;
+    while (node) { y += node.offsetTop || 0; node = node.offsetParent; }
+    return y;
   }
 
   function enter() {
-    if (floating) return;
-    if (opts.canFloat && !opts.canFloat()) return;
+    if (floating || !canFloat()) return;
     const rect = pane.getBoundingClientRect();
     if (!rect.height) return;
+    lastDocTop = docTopOf(pane);
     floating = true;
     spacer = document.createElement("div");
     spacer.className = "float-spacer";
@@ -3582,7 +3588,7 @@ function setupAutoFloat(pane, opts = {}) {
     backBtn.title = "আসল জায়গায় ফিরে যান";
     backBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     backBtn.addEventListener("click", () => {
-      window.scrollTo({ top: Math.max(0, staticTop - 140), behavior: "smooth" });
+      window.scrollTo({ top: Math.max(0, lastDocTop - 140), behavior: "smooth" });
     });
     pane.appendChild(backBtn);
   }
@@ -3595,18 +3601,28 @@ function setupAutoFloat(pane, opts = {}) {
     spacer = null;
     if (backBtn && backBtn.parentNode) backBtn.parentNode.removeChild(backBtn);
     backBtn = null;
-    measure();
   }
 
   function update() {
-    if (pane.offsetParent === null) { leave(); return; }
-    if (floating && opts.canFloat && !opts.canFloat()) { leave(); return; }
-    if (!staticTop) measure();
-    if (!staticTop) return;
-    const threshold = staticTop + (pane.offsetHeight || 0) - pad;
-    const y = window.scrollY;
-    if (!floating && y > threshold) enter();
-    else if (floating && y < threshold - 80) leave();
+    if (floating) {
+      // NOTE: a fixed-position element reports offsetParent === null, so this
+      // branch must NOT use that as a "hidden" test — doing so cancelled the
+      // floating state on the very next scroll event.
+      if (!canFloat()) { leave(); return; }
+      if (!pane.getBoundingClientRect().height) { leave(); return; } // really hidden
+      const slot = spacer && spacer.getBoundingClientRect();
+      if (slot && slot.top > -40) leave(); // the original spot is back on screen
+      return;
+    }
+
+    if (pane.offsetParent === null) return; // hidden (e.g. Tools page open)
+    if (!canFloat()) return;
+
+    const height = pane.offsetHeight || 0;
+    if (!height) return;
+    const docTop = docTopOf(pane);
+    const threshold = docTop + Math.max(140, height * 0.55);
+    if (window.scrollY > threshold) enter();
   }
 
   function onScroll() {
@@ -3616,14 +3632,10 @@ function setupAutoFloat(pane, opts = {}) {
   }
 
   window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", () => { if (!floating) measure(); onScroll(); });
-  requestAnimationFrame(() => { measure(); update(); });
+  window.addEventListener("resize", onScroll);
+  requestAnimationFrame(update);
 
-  return {
-    refresh() { if (!floating) { staticTop = 0; measure(); } update(); },
-    leave,
-    isFloating: () => floating,
-  };
+  return { refresh() { update(); }, leave, isFloating: () => floating };
 }
 
 // ------------------------------------------------------------
