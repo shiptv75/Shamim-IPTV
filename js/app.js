@@ -3616,10 +3616,15 @@ function setupAutoFloat(pane, opts = {}) {
     if (!canFloat()) return;
     if (!pane.offsetHeight) return;
 
-    // Float as soon as the visitor has scrolled just past the player's slot, so
-    // the video is never lost — this does not depend on sticky positioning
-    // (a player taller than the viewport never sticks).
-    if (window.scrollY > docTopOf(pane) + 120) enter();
+    // Float when the visitor scrolls past the player's slot — and also once the
+    // page has reached the bottom, so the video always stays on screen.
+    // (A player taller than the viewport never sticks, so this cannot rely on
+    // sticky positioning.)
+    const scrolledPast = window.scrollY > docTopOf(pane) + 120;
+    const doc = document.documentElement;
+    const atBottom = window.scrollY > 0 && doc &&
+      (window.scrollY + window.innerHeight >= doc.scrollHeight - 120);
+    if (scrolledPast || atBottom) enter();
   }
 
   function onScroll() {
