@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/style.css?v=20261108e">
+<link rel="stylesheet" href="css/style.css?v=20261108g">
 </head>
 <body>
 
@@ -146,18 +146,24 @@
               <div class="cv-progress-fill" id="cv-progress-fill"></div>
               <div class="cv-progress-thumb" id="cv-progress-thumb"></div>
             </div>
-            <div class="cv-controls-row">
-              <button class="cv-btn" id="cv-prev-btn" onclick="cvPlayPrev()" title="Previous"><i class="fa-solid fa-backward-step"></i></button>
-              <button class="cv-btn" id="cv-play-btn" onclick="cvTogglePlay()" title="Play/Pause (Space)"><i class="fa-solid fa-play" id="cv-play-icon"></i></button>
-              <button class="cv-btn" id="cv-next-btn" onclick="cvPlayNext()" title="Next"><i class="fa-solid fa-forward-step"></i></button>
-              <button class="cv-btn cv-btn-live" id="cv-golive-btn" onclick="cvGoLive()" style="display:none;" title="Jump to Live">&#9679; LIVE</button>
-              <div class="cv-vol-wrap">
-                <button class="cv-btn" id="cv-mute-btn" onclick="cvToggleMute()" title="Mute (M)"><i class="fa-solid fa-volume-high" id="cv-vol-icon"></i></button>
-                <input class="cv-vol-slider" id="cv-vol-slider" max="1" min="0" oninput="cvSetVolume(this.value)" step="0.05" type="range" value="1">
+                        <div class="cv-controls-row cv-controls-row-centered">
+              <div class="cv-ctrl-side cv-ctrl-left"></div>
+              <div class="cv-ctrl-center">
+                <button class="cv-btn" id="cv-prev-btn" onclick="cvPlayPrev()" title="Previous"><i class="fa-solid fa-backward-step"></i></button>
+                <button class="cv-btn" id="cv-play-btn" onclick="cvTogglePlay()" title="Play/Pause (Space)"><i class="fa-solid fa-play" id="cv-play-icon"></i></button>
+                <button class="cv-btn" id="cv-next-btn" onclick="cvPlayNext()" title="Next"><i class="fa-solid fa-forward-step"></i></button>
+                <button class="cv-btn cv-btn-live" id="cv-golive-btn" onclick="cvGoLive()" style="display:none;" title="Jump to Live">&#9679; LIVE</button>
+                <div class="cv-vol-wrap">
+                  <button class="cv-btn" id="cv-mute-btn" onclick="cvToggleMute()" title="Mute (M)"><i class="fa-solid fa-volume-high" id="cv-vol-icon"></i></button>
+                  <input class="cv-vol-slider" id="cv-vol-slider" max="1" min="0" oninput="cvSetVolume(this.value)" step="0.05" type="range" value="1">
+                </div>
               </div>
-              <div class="cv-spacer"></div>
-              <button class="cv-btn cv-btn-settings" id="cv-settings-btn" onclick="cvToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
-              <button class="cv-btn cv-btn-fs" onclick="cvToggleFullscreen()" title="Fullscreen (F)"><i class="fa-solid fa-expand" id="cv-fs-icon"></i></button>
+              <div class="cv-ctrl-side cv-ctrl-right">
+                <button class="cv-btn cv-btn-tools" id="cv-rotate-btn" onclick="cvToggleRotation()" title="ঘোরান / Orientation"><i class="fa-solid fa-rotate-right"></i></button>
+                <button class="cv-btn cv-btn-tools" id="cv-fit-btn" onclick="cvToggleFit()" title="অ্যাসপেক্ট / Screen fit"><i class="fa-solid fa-crop-simple"></i></button>
+                <button class="cv-btn cv-btn-settings" id="cv-settings-btn" onclick="cvToggleSettings(event)" title="সেটিংস" aria-label="সেটিংস" aria-expanded="false"><i class="fa-solid fa-gear"></i></button>
+                <button class="cv-btn cv-btn-fs" onclick="cvToggleFullscreen()" title="Fullscreen (F)"><i class="fa-solid fa-expand" id="cv-fs-icon"></i></button>
+              </div>
             </div>
           </div>
         </div>
@@ -563,6 +569,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mpegts.js/1.7.3/mpegts.js"></script>
-<script src="js/app.js?v=20261108e"></script>
+<script src="js/app.js?v=20261108g"></script>
 </body>
 </html>
