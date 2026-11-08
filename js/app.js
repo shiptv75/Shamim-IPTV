@@ -2872,6 +2872,41 @@ function cvToggleFullscreen() {
   }
 }
 
+// ── rotate / aspect-fit (added for the player toolbar) ──
+let cvRotation = 0;
+let cvFitIndex = 0;
+const CV_FIT_MODES = ["contain", "cover", "fill"];
+const CV_FIT_LABELS = ["Fit: Contain", "Fit: Cover", "Fit: Stretch"];
+
+function cvApplyRotation() {
+  const v = $("#main-hybrid-video-node");
+  const frame = $("#cv-player-frame");
+  if (!v) return;
+  if (!cvRotation) { v.style.transform = ""; return; }
+  let scale = 1;
+  if (cvRotation === 90 || cvRotation === 270) {
+    const w = (frame && frame.clientWidth) || 0;
+    const h = (frame && frame.clientHeight) || 0;
+    if (w && h) scale = Math.min(w / h, h / w);
+  }
+  v.style.transform = "rotate(" + cvRotation + "deg) scale(" + scale + ")";
+}
+
+function cvToggleRotation() {
+  cvRotation = (cvRotation + 90) % 360;
+  cvApplyRotation();
+  cvShowToast(cvRotation ? "↻ " + cvRotation + "°" : "↻ 0°");
+}
+
+function cvToggleFit() {
+  const v = $("#main-hybrid-video-node");
+  cvFitIndex = (cvFitIndex + 1) % CV_FIT_MODES.length;
+  if (v) v.style.objectFit = CV_FIT_MODES[cvFitIndex];
+  cvShowToast(CV_FIT_LABELS[cvFitIndex]);
+}
+
+window.addEventListener("resize", () => { try { cvApplyRotation(); } catch {} });
+
 function cvTogglePip() {
   const v = $("#main-hybrid-video-node");
   if (!v) return;
@@ -3191,6 +3226,7 @@ function cvRenderFloatChList(query) {
 function cvFloatChSearch(val) { cvRenderFloatChList(val); }
 
 document.addEventListener("fullscreenchange", () => {
+  try { setTimeout(cvApplyRotation, 60); } catch {}
   const frame = $("#cv-player-frame");
   const icon = $("#cv-fs-icon");
   if (document.fullscreenElement) {
@@ -3625,8 +3661,12 @@ function setupAutoFloat(pane, opts = {}) {
     if (!canFloat()) return;
     if (!pane.offsetHeight) return;
 
-    const top = pane.getBoundingClientRect().top;
-    if (top < 40 || isAtBottom()) enter();
+    // Only detach once the channel/stream info strip has scrolled past the
+    // top of the screen — the viewer keeps seeing the info for as long as the
+    // player itself is visible.
+    const info = pane.querySelector(".dp-player-meta-info-block");
+    const triggerRect = (info || pane).getBoundingClientRect();
+    if (triggerRect.bottom < 40 || isAtBottom()) enter();
   }
 
   function onScroll() {
