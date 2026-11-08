@@ -1570,3 +1570,42 @@ html[data-theme="light"] .pg-code{ background:#f7f9fc; color:#1b2733; }
   .le-card{ width:132px; }
   .le-name{ font-size:11px; min-height:29px; }
 }
+
+/* ============================================================
+   Floating player: keep the channel/stream info visible
+   ============================================================ */
+.player-float .dp-player-meta-info-block{
+  display:flex !important; padding:8px 10px; gap:10px;
+}
+.player-float .dp-meta-channel-logo{
+  width:36px !important; height:36px !important; flex-shrink:0;
+}
+.player-float .dp-meta-text-details{ min-width:0; }
+.player-float .dp-meta-channel-name{
+  font-size:12px !important; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.player-float .dp-meta-status-text{
+  font-size:10px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* rotate / aspect-fit buttons sit with the other bar buttons */
+.cv-btn.cv-btn-tools{ color:#9fb2cc; }
+.cv-btn.cv-btn-tools:hover{ color:#fff; background: rgba(0,201,122,.3); }
+
+/* ===== main player: buttons centred in the bottom bar ===== */
+.cv-controls-row.cv-controls-row-centered{
+  display:grid;
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+}
+.cv-ctrl-center, .cv-ctrl-right{
+  display:flex; align-items:center; gap:6px; min-width:0;
+}
+.cv-ctrl-center{ justify-self:center; }
+.cv-ctrl-right{ justify-self:end; }
+@media (max-width: 560px){
+  .cv-controls-row.cv-controls-row-centered{ gap:4px; }
+  .cv-ctrl-center, .cv-ctrl-right{ gap:3px; }
+  .cv-ctrl-center .cv-vol-slider{ width:56px; }
+}
