@@ -8,19 +8,13 @@ const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/h
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.json";
-const M3U_URL_CRICHD = "https://raw.githubusercontent.com/srhady/CricketLive/refs/heads/main/playlist.m3u";
-const M3U_URL_WILLOW = "https://raw.githubusercontent.com/srhady/willow-event/refs/heads/main/live_sports.m3u";
-const M3U_URL_SONY_LIV = "https://raw.githubusercontent.com/srhady/SonyLiv/refs/heads/main/sonyliv_playlist.m3u";
 
 
 const M3U_SOURCES = [
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
-  { url: M3U_URL_CRICHD, type: "m3u", source: "CRICHD" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_FANCODE_BD, type: "json", source: "FanCode_BD" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
-  { url: M3U_URL_WILLOW, type: "m3u", source: "WILLOW" },
-  { url: M3U_URL_SONY_LIV, type: "m3u", source: "SONY_LIV" },
 
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
@@ -30,9 +24,7 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "TapMad",
   "FanCode",
   "FanCode_BD",
-  "WILLOW", 
-  "BINGE_STREAM",
-  "CRICHD",
+
 ]);
 // Wraps a real stream URL through the site's own proxy (adds CORS headers and
 // spoofs Referer/Origin — what Referer-protected CDNs like FanCode need).
@@ -544,8 +536,7 @@ let CATEGORY_DEFS = [
   { key: "movies", label: "🍿 Movies", match: /movie/i },
   { key: "entertainment", label: "🎭 Entertainment", match: /entertainment/i },
   { key: "kids", label: "🧸 Kids", match: /kids/i },
-  { key: "lifestyle", label: "📖 Lifestyle", match: /document|lifestyle/i },
-  { key: "indian_bangla", label: "🇮🇳 Indian Bangla", match: /indian.?bangla|kolkata/i },
+  { key: "indian_bangla", label: "Kolkata", match: /indian.?bangla|kolkata/i },
   { key: "religious", label: "🛐 Religious", match: /islamic|religious/i },
 ];
 
