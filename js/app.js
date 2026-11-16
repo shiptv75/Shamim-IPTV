@@ -8,14 +8,14 @@ const M3U_URL_SHIPTV = "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/h
 const M3U_URL_TAPMAD = "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u";
 const M3U_URL_FANCODE = "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u";
 const M3U_URL_FANCODE_BD = "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.json";
-
+const M3U_URL_SONYLIV = "https://srhady-sliv.hf.space/live.m3u";
 
 const M3U_SOURCES = [
   { url: M3U_URL_SHIPTV, type: "m3u", source: "SHIPTV" },
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_FANCODE_BD, type: "json", source: "FanCode_BD" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
-
+  { url: M3U_URL_SONYLIV, type: "m3u", source: " SonyLiv" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -24,6 +24,7 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
   "TapMad",
   "FanCode",
   "FanCode_BD",
+  "SonyLiv",
 
 ]);
 // Wraps a real stream URL through the site's own proxy (adds CORS headers and
