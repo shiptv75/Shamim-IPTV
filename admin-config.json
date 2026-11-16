@@ -34,11 +34,8 @@
     "Depot",
     "MadaniTV",
     "PeaceTV",
-    "DBC",
     "TV ONE",
-    "Laliga HD",
-    "Fancode 1",
-    "Fancode 2"
+    "Laliga HD"
   ],
   "categories": [
     {
@@ -68,7 +65,7 @@
     },
     {
       "key": "entertainment",
-      "label": "Entertainment",
+      "label": "Indian",
       "match": "entertainment"
     },
     {
@@ -76,19 +73,15 @@
       "label": "Kids",
       "match": "kids"
     },
-    {
-      "key": "lifestyle",
-      "label": "Lifestyle",
-      "match": "documentary|lifestyle"
-    },
+    
     {
       "key": "indian_bangla",
-      "label": "Indian Bangla",
+      "label": "Kolkata",
       "match": "indian_bangla|kolkata"
     },
     {
       "key": "religious",
-      "label": "Religious",
+      "label": "Islamic",
       "match": "islam|islamic|religious"
     }
   ],
