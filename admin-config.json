@@ -46,7 +46,7 @@
     {
       "key": "bangla",
       "label": "Bangla",
-      "match": "bangla|bangladeshi"
+      "match": "bangla|bangladeshi|bangladesh"
     },
     {
       "key": "news",
@@ -66,14 +66,18 @@
     {
       "key": "entertainment",
       "label": "Indian",
-      "match": "entertainment"
+      "match": "entertainment|Indian"
     },
     {
       "key": "kids",
       "label": "Kids",
       "match": "kids"
     },
-    
+    {
+      "key": "Pakistani",
+      "label": "Pakistani",
+      "match": "Pakistani"
+    },
     {
       "key": "indian_bangla",
       "label": "Kolkata",
