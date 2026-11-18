@@ -1,1 +1,156 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Routine Image Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@600;700&family=Poppins:wght@600;700&family=Hind+Siliguri:wght@500;700&family=Noto+Sans+Bengali:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#15171c;--pn:#1e2128;--ln:#343944;--tx:#e9eaee;--mu:#9aa0ad;--ac:#ff5fb8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,"Noto Sans Bengali",sans-serif}
+.app{display:grid;grid-template-columns:minmax(300px,460px) 1fr;gap:16px;padding:16px;max-width:1500px;margin:auto}
+@media(max-width:900px){.app{grid-template-columns:1fr}}
+.prev{position:sticky;top:16px;align-self:start}
+@media(max-width:900px){.prev{position:static}}
+canvas{width:100%;height:auto;max-height:82vh;object-fit:contain;display:block;background:#000;border-radius:8px;border:1px solid var(--ln)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button,.btn{background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit}
+button:hover,.btn:hover{border-color:var(--ac)}
+button.pri{background:var(--ac);border-color:var(--ac);color:#1a0010;font-weight:700}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:12px;margin-bottom:12px}
+.card h2{font-size:14px;margin:0 0 10px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+label{display:block;color:var(--mu);font-size:12px}
+input,select{width:100%;background:#12141a;color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:6px 8px;font:inherit}
+input[type=color]{padding:0;height:28px;min-width:34px;cursor:pointer}
+input[type=range]{padding:0}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;min-width:100%}
+th,td{border:1px solid var(--ln);padding:4px;vertical-align:top;min-width:96px}
+th{background:#252932;font-weight:600}
+td input,th input{margin-bottom:3px}
+td button,th button{padding:2px 8px;font-size:12px}
+.nt{display:grid;grid-template-columns:50px 60px 90px 1fr 1fr 40px auto;gap:4px;margin-bottom:6px;align-items:center}
+@media(max-width:700px){.nt{grid-template-columns:1fr 1fr 1fr}}
+.hint{color:var(--mu);font-size:12px;margin:6px 0 0}
+</style></head><body>
+<div class="app">
+ <div class="prev">
+  <canvas id="cv" width="1080" height="1440"></canvas>
+  <div class="bar">
+   <button class="pri" id="dl">Download PNG</button>
+   <button id="sv">Save project</button>
+   <label class="btn" style="color:var(--tx)">Open project<input type="file" id="ld" accept=".json" hidden></label>
+   <button id="rs">Reset</button>
+  </div>
+ </div>
+ <div id="ed"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s),cv=$('#cv');let x,S,BG=null;
+const KEY='routine-maker-v1',BLUE='#5cc8ff',GRN='#5cff7a',YEL='#ffd84a',RED='#ff5a4a',PNK='#ff6ad5';
+const R=(d,m,day,c)=>({d,m,day,cells:c.map(a=>({t:a[0],s:a[1],c:a[2]}))});
+function def(){return{W:1080,H:1440,font:'Orbitron',style:'neon',glow:18,dateColor:PNK,
+ bg:{mode:'wood',c1:'#3b2c24',c2:'#120e0c'},
+ title:{a:'CLASS 11',b:'[HSC 2028]'},sub:'ONE WEEK CLASS & EXAM ROUTINE',headDate:'Date & Day',
+ head:[{t:'Class',s:'[With Lecture]',c:'#e8e8e8'},{t:'Exam',s:'[With Lecture]',c:'#e8e8e8'}],
+ rows:[R('15','nov','Sunday',[['H.Math','[L 21+22]',BLUE],['H.Math','[L 19+20]',BLUE]]),
+  R('16','nov','Monday',[['Biology','[L 03+04]',GRN],['H.Math','[L 21+22]',BLUE]]),
+  R('17','nov','Tuesday',[['Physics','[L 11+12]',YEL],['Biology','[L 03+04]',GRN]]),
+  R('18','nov','Wednesday',[['Physics','[L 13+14]',YEL],['Physics','[L 11+12]',YEL]]),
+  R('19','nov','Thursday',[['Chemistry','[L 13+14]',RED],['Physics','[L 13+14]',YEL]])],
+ notes:[{d:'20',m:'nov',day:'Friday',t:'Chapter wise Exam',s:'Physics - Chapter 02 (Lecture 03-14)',c:RED}]}}
+try{S=Object.assign(def(),JSON.parse(localStorage.getItem(KEY)))}catch(e){S=def()}
+const hex=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+const F=(s,w=700)=>`${w} ${s}px "${S.font}","Noto Sans Bengali","Hind Siliguri",sans-serif`;
+function para(X,Y,w,h){const k=h*.12;x.beginPath();x.moveTo(X+k,Y);x.lineTo(X+w,Y);x.lineTo(X+w-k,Y+h);x.lineTo(X,Y+h);x.closePath()}
+function T(str,cx,cy,mw,sz,col,w){if(!str)return;let s=sz;x.font=F(s,w);while(x.measureText(str).width>mw&&s>8){s--;x.font=F(s,w)}x.fillStyle=col;x.textAlign='center';x.textBaseline='middle';x.fillText(str,cx,cy)}
+// modes: s silver, f solid colour, n neon glass, d dark plate
+function box(X,Y,w,h,col,m){para(X,Y,w,h);
+ if(m=='s'){const g=x.createLinearGradient(0,Y,0,Y+h);g.addColorStop(0,'#f6f6f6');g.addColorStop(1,'#b7bbc0');x.fillStyle=g;x.fill();x.strokeStyle='#4a4d52';x.lineWidth=2;x.stroke()}
+ else if(m=='f'){x.fillStyle=col;x.fill()}
+ else if(m=='d'){x.fillStyle='rgba(22,15,11,.72)';x.fill()}
+ else{x.save();x.shadowColor=col;x.shadowBlur=S.glow;x.fillStyle='rgba(10,8,8,.55)';x.fill();x.strokeStyle=col;x.lineWidth=3;x.stroke();x.restore();para(X,Y,w,h);x.fillStyle=hex(col,.14);x.fill()}}
+const tcol=(m,c)=>m=='s'?'#111':m=='f'?'#fff':m=='d'?'#bdbdbd':c;
+function cell(X,Y,w,h,t,s,c,m){box(X,Y,w,h,c,m);const tc=tcol(m,c),cx=X+w/2+h*.05;
+ if(s){T(t,cx,Y+h*.37,w*.84,h*.36,tc);T(s,cx,Y+h*.74,w*.84,h*.21,tc,600)}else T(t,cx,Y+h/2,w*.84,h*.4,tc)}
+function dateCell(X,Y,w,h,r,c,m){box(X,Y,w,h,c,m);const tc=tcol(m,c),cx=X+w/2+h*.05;
+ if(r.day!==undefined){T(r.d,cx,Y+h*.3,w*.8,h*.36,tc);T(r.m,cx,Y+h*.58,w*.8,h*.2,tc);T(r.day,cx,Y+h*.83,w*.85,h*.15,tc,600)}
+ else{T(r.d,cx,Y+h*.38,w*.8,h*.5,tc);T(r.m,cx,Y+h*.78,w*.8,h*.24,tc)}}
+function drawBg(){const W=S.W,H=S.H,b=S.bg;
+ if(b.mode=='image'&&BG){const r=Math.max(W/BG.width,H/BG.height),w=BG.width*r,h=BG.height*r;x.drawImage(BG,(W-w)/2,(H-h)/2,w,h);return}
+ if(b.mode=='solid'){x.fillStyle=b.c1;x.fillRect(0,0,W,H);return}
+ const g=b.mode=='wood'?x.createLinearGradient(0,0,0,H):x.createLinearGradient(0,0,W,H);
+ g.addColorStop(0,b.c1);g.addColorStop(1,b.c2);x.fillStyle=g;x.fillRect(0,0,W,H);
+ if(b.mode=='wood'){let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+  for(let i=0;i<260;i++){const px=rnd()*W,w=1+rnd()*3;x.fillStyle=rnd()>.5?`rgba(0,0,0,${.05+rnd()*.1})`:`rgba(255,255,255,${.02+rnd()*.05})`;x.fillRect(px,0,w,H)}
+  x.fillStyle='rgba(0,0,0,.5)';x.fillRect(W*.5-2,0,4,H);x.fillRect(W*.05,0,3,H);x.fillRect(W*.95,0,3,H);
+  const v=x.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.8);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.45)');x.fillStyle=v;x.fillRect(0,0,W,H)}}
+function render(){const W=S.W,H=S.H;cv.width=W;cv.height=H;x=cv.getContext('2d');drawBg();
+ const neon=S.style=='neon',m=W*.07,gap=10,sk=6;
+ const pw=W*.52,ph=H*.13,px=(W-pw)/2,py=H*.05;
+ box(px,py,pw,ph,'','s');T(S.title.a,W/2,py+ph*.4,pw*.8,ph*.42,'#1b1b1b',800);T(S.title.b,W/2,py+ph*.78,pw*.7,ph*.2,'#1b1b1b',600);
+ const sy=py+ph+H*.05;x.save();x.shadowColor='rgba(0,0,0,.8)';x.shadowBlur=6;T(S.sub,W/2,sy,W*.86,W*.04,'#d6d0c8',700);x.restore();
+ const top=sy+H*.045,n=S.rows.length+S.notes.length+1,rh=Math.min(H*.078,(H-top-H*.04-(n-1)*gap)/n);
+ const dW=W*.11,yW=W*.2,k=Math.max(S.head.length,1),cX=m+dW+yW+sk*2,cW=(W-m-cX-gap*(k-1))/k;
+ let y=top;
+ cell(m,y,dW+yW+sk,rh,S.headDate,'',S.dateColor,neon?'n':'f');
+ S.head.forEach((h,i)=>cell(cX+i*(cW+gap),y,cW,rh,h.t,h.s,h.c,neon?'n':'s'));y+=rh+gap;
+ S.rows.forEach(r=>{dateCell(m,y,dW,rh,{d:r.d,m:r.m},S.dateColor,neon?'n':'f');
+  cell(m+dW+sk,y,yW,rh,r.day,'','#888',neon?'d':'s');
+  r.cells.forEach((c,i)=>cell(cX+i*(cW+gap),y,cW,rh,c.t,c.s,c.c,neon?'n':'s'));y+=rh+gap});
+ S.notes.forEach(o=>{dateCell(m,y,dW,rh,o,o.c,neon?'n':'f');
+  cell(m+dW+sk,y,W-2*m-dW-sk,rh,o.t,o.s,o.c,neon?'n':'f');y+=rh+gap});
+ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+// ---------- editor ----------
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const I=(k,v,p='')=>`<input data-k="${k}" value="${esc(v)}" placeholder="${p}">`;
+const C=(k,v)=>`<input type="color" data-k="${k}" value="${v}" aria-label="colour">`;
+const O=(k,v,o)=>`<select data-k="${k}">${o.map(a=>`<option ${a==v?'selected':''}>${a}</option>`).join('')}</select>`;
+const L=(t,h)=>`<label>${t}${h}</label>`;
+function build(){let h=`<div class="card"><h2>Canvas</h2><div class="g">
+ ${L('Size',`<select id="sz">${['1080x1440','1080x1080','1080x1350','1080x1920','1600x1200'].map(a=>`<option ${a==S.W+'x'+S.H?'selected':''}>${a}</option>`).join('')}</select>`)}
+ ${L('Font',O('font',S.font,['Orbitron','Rajdhani','Poppins','Hind Siliguri','Noto Sans Bengali']))}
+ ${L('Look',O('style',S.style,['neon','plain']))}
+ ${L('Glow',`<input type="range" data-k="glow" min="0" max="40" value="${S.glow}">`)}
+ ${L('Date colour',C('dateColor',S.dateColor))}</div></div>
+ <div class="card"><h2>Background</h2><div class="g">
+ ${L('Type',O('bg.mode',S.bg.mode,['wood','solid','gradient','image']))}
+ ${L('Colour 1',C('bg.c1',S.bg.c1))}${L('Colour 2',C('bg.c2',S.bg.c2))}
+ ${L('Upload image',`<input type="file" id="bi" accept="image/*">`)}</div></div>
+ <div class="card"><h2>Titles</h2><div class="g">
+ ${L('Title',I('title.a',S.title.a))}${L('Sub title',I('title.b',S.title.b))}
+ ${L('Heading',I('sub',S.sub))}${L('Date header',I('headDate',S.headDate))}</div></div>
+ <div class="card"><h2>Table</h2><div class="bar" style="margin:0 0 8px"><button data-a="ar">+ Row</button><button data-a="ac">+ Column</button></div><div class="sc"><table><thead><tr><th>Date / Month / Day</th>`;
+ S.head.forEach((c,i)=>h+=`<th>${I(`head.${i}.t`,c.t,'Header')}${I(`head.${i}.s`,c.s,'Small text')}${C(`head.${i}.c`,c.c)} <button data-a="dc" data-i="${i}" title="Delete column">✕</button></th>`);
+ h+='<th></th></tr></thead><tbody>';
+ S.rows.forEach((r,i)=>{h+=`<tr><td>${I(`rows.${i}.d`,r.d,'15')}${I(`rows.${i}.m`,r.m,'nov')}${I(`rows.${i}.day`,r.day,'Day')}</td>`;
+  r.cells.forEach((c,j)=>h+=`<td>${I(`rows.${i}.cells.${j}.t`,c.t,'Subject')}${I(`rows.${i}.cells.${j}.s`,c.s,'[L 01+02]')}${C(`rows.${i}.cells.${j}.c`,c.c)}</td>`);
+  h+=`<td><button data-a="dr" data-i="${i}" title="Delete row">✕</button></td></tr>`});
+ h+=`</tbody></table></div><p class="hint">Each cell has a main line, a small line and a colour.</p></div>
+ <div class="card"><h2>Wide banner rows (exam notices)</h2><div class="bar" style="margin:0 0 8px"><button data-a="an">+ Banner</button></div>`;
+ S.notes.forEach((o,i)=>h+=`<div class="nt">${I(`notes.${i}.d`,o.d,'20')}${I(`notes.${i}.m`,o.m,'nov')}${I(`notes.${i}.day`,o.day,'Day')}${I(`notes.${i}.t`,o.t,'Title')}${I(`notes.${i}.s`,o.s,'Details')}${C(`notes.${i}.c`,o.c)}<button data-a="dn" data-i="${i}">✕</button></div>`);
+ $('#ed').innerHTML=h+'</div>'}
+function setP(p,v){const a=p.split('.');let o=S;for(let i=0;i<a.length-1;i++)o=o[a[i]];o[a.at(-1)]=v}
+const ready=()=>document.fonts.load(`700 20px "${S.font}"`).then(render,render);
+$('#ed').addEventListener('input',e=>{const t=e.target,k=t.dataset.k;if(!k)return;setP(k,t.type=='range'?+t.value:t.value);k=='font'?ready():render()});
+$('#ed').addEventListener('change',e=>{const t=e.target;
+ if(t.id=='sz'){[S.W,S.H]=t.value.split('x').map(Number);render()}
+ if(t.id=='bi'&&t.files[0]){const im=new Image();im.onload=()=>{BG=im;S.bg.mode='image';build();render()};im.src=URL.createObjectURL(t.files[0])}
+ if(t.dataset.k=='bg.mode'||t.dataset.k=='font')render()});
+$('#ed').addEventListener('click',e=>{const a=e.target.dataset.a,i=+e.target.dataset.i;if(!a)return;
+ const lc=S.rows.length?S.rows.at(-1).cells:[];
+ if(a=='ar')S.rows.push({d:'',m:'',day:'',cells:S.head.map((_,j)=>({t:'',s:'',c:lc[j]?lc[j].c:BLUE}))});
+ if(a=='dr')S.rows.splice(i,1);
+ if(a=='ac'){S.head.push({t:'New',s:'',c:'#e8e8e8'});S.rows.forEach(r=>r.cells.push({t:'',s:'',c:BLUE}))}
+ if(a=='dc'&&S.head.length>1){S.head.splice(i,1);S.rows.forEach(r=>r.cells.splice(i,1))}
+ if(a=='an')S.notes.push({d:'',m:'',day:'',t:'Exam',s:'',c:RED});
+ if(a=='dn')S.notes.splice(i,1);
+ build();render()});
+$('#dl').onclick=()=>cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='routine.png';a.click()});
+$('#sv').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='routine-project.json';a.click()};
+$('#ld').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{S=Object.assign(def(),JSON.parse(t));build();ready()}catch(er){alert('This file is not a valid project.')}})};
+$('#rs').onclick=()=>{if(confirm('Reset everything to the sample routine?')){S=def();BG=null;build();ready()}};
+build();ready();document.fonts.ready.then(render);
+</script></body></html>
 
