@@ -31,7 +31,7 @@ th,td{border:1px solid var(--ln);padding:4px;vertical-align:top;min-width:96px}
 th{background:#252932;font-weight:600}
 td input,th input{margin-bottom:3px}
 td button,th button{padding:2px 8px;font-size:12px}
-.nt{display:grid;grid-template-columns:50px 60px 90px 1fr 1fr 40px auto;gap:4px;margin-bottom:6px;align-items:center}
+.nt{display:grid;grid-template-columns:50px 60px 90px 62px 1fr 1fr 40px auto;gap:4px;margin-bottom:6px;align-items:center}
 @media(max-width:700px){.nt{grid-template-columns:1fr 1fr 1fr}}
 .hint{color:var(--mu);font-size:12px;margin:6px 0 0}
 </style></head><body>
@@ -61,7 +61,7 @@ function def(){return{tb:{st:'stepped',mat:'silver',mc:'#ff6ad5',frame:'on',fc:'
   R('17','nov','Tuesday',[['Physics','[L 11+12]',YEL],['Biology','[L 03+04]',GRN]]),
   R('18','nov','Wednesday',[['Physics','[L 13+14]',YEL],['Physics','[L 11+12]',YEL]]),
   R('19','nov','Thursday',[['Chemistry','[L 13+14]',RED],['Physics','[L 13+14]',YEL]])],
- notes:[{d:'20',m:'nov',day:'Friday',t:'Chapter wise Exam',s:'Physics - Chapter 02 (Lecture 03-14)',c:RED}]}}
+ notes:[{d:'20',m:'nov',day:'Friday',t:'Chapter wise Exam',s:'Physics - Chapter 02 (Lecture 03-14)',c:RED,pos:''}]}}
 try{S=Object.assign(def(),JSON.parse(localStorage.getItem(KEY)))}catch(e){S=def()}
 const hex=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
 const F=(s,w=700)=>`${w} ${s}px "${S.font}","Noto Sans Bengali","Hind Siliguri",sans-serif`;
@@ -158,11 +158,13 @@ function render(){const W=S.W,H=S.H;cv.width=W;cv.height=H;x=cv.getContext('2d')
  let y=top;
  cell(m,y,dW+yW+sk,rh,S.headDate,'',S.dateColor,MT.head);
  S.head.forEach((h,i)=>cell(cX+i*(cW+gap),y,cW,rh,h.t,h.s,h.c,MT.head));y+=rh+gap;
- S.rows.forEach(r=>{dateCell(m,y,dW,rh,{d:r.d,m:r.m},S.dateColor,MT.date);
+ const pp=o=>{const v=parseInt(o.pos);return isNaN(v)?S.rows.length:Math.max(0,Math.min(v,S.rows.length))},
+  nt=o=>{dateCell(m,y,dW,rh,{d:o.d,m:o.m},o.c,MT.note);cell(m+dW+sk,y,yW,rh,o.day,'',o.c,MT.note);cell(cX,y,W-m-cX,rh,o.t,o.s,o.c,MT.note);y+=rh+gap},
+  at=i=>S.notes.filter(o=>pp(o)==i).forEach(nt);
+ at(0);
+ S.rows.forEach((r,i)=>{dateCell(m,y,dW,rh,{d:r.d,m:r.m},S.dateColor,MT.date);
   cell(m+dW+sk,y,yW,rh,r.day,'','#888',MT.day);
-  r.cells.forEach((c,i)=>cell(cX+i*(cW+gap),y,cW,rh,c.t,c.s,c.c,MT.cell));y+=rh+gap});
- S.notes.forEach(o=>{dateCell(m,y,dW,rh,o,o.c,MT.note);
-  cell(m+dW+sk,y,W-2*m-dW-sk,rh,o.t,o.s,o.c,MT.note);y+=rh+gap});
+  r.cells.forEach((c,j)=>cell(cX+j*(cW+gap),y,cW,rh,c.t,c.s,c.c,MT.cell));y+=rh+gap;at(i+1)});
  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 // ---------- editor ----------
 const FONTS=['Orbitron','Rajdhani','Poppins','Hind Siliguri','Noto Sans Bengali','SolaimanLipi','Anek Bangla','Baloo Da 2','Noto Serif Bengali','Galada','Atma','Mina','Tiro Bangla','Bebas Neue','Audiowide','Russo One','Exo 2','Righteous','Chakra Petch','Bungee','Playfair Display'],CF=[];
@@ -205,8 +207,8 @@ function build(){let h=`<div class="card"><h2>Canvas</h2><div class="g">
   h+=`<td><button data-a="dr" data-i="${i}" title="Delete row">✕</button></td></tr>`});
  h+=`</tbody></table></div><p class="hint">Each cell has a main line, a small line and a colour.</p></div>
  <div class="card"><h2>Wide banner rows (exam notices)</h2><div class="bar" style="margin:0 0 8px"><button data-a="an">+ Banner</button></div>`;
- S.notes.forEach((o,i)=>h+=`<div class="nt">${I(`notes.${i}.d`,o.d,'20')}${I(`notes.${i}.m`,o.m,'nov')}${I(`notes.${i}.day`,o.day,'Day')}${I(`notes.${i}.t`,o.t,'Title')}${I(`notes.${i}.s`,o.s,'Details')}${C(`notes.${i}.c`,o.c)}<button data-a="dn" data-i="${i}">✕</button></div>`);
- $('#ed').innerHTML=h+'</div>'}
+ S.notes.forEach((o,i)=>h+=`<div class="nt">${I(`notes.${i}.d`,o.d,'20')}${I(`notes.${i}.m`,o.m,'nov')}${I(`notes.${i}.day`,o.day,'Day')}${I(`notes.${i}.pos`,o.pos??'','After row #')}${I(`notes.${i}.t`,o.t,'Title')}${I(`notes.${i}.s`,o.s,'Details')}${C(`notes.${i}.c`,o.c)}<button data-a="dn" data-i="${i}">✕</button></div>`);
+ $('#ed').innerHTML=h+'<p class="hint">Banner: Date and Day are separate tabs; the wide tab covers Class + Exam. "After row #": 0 = above the first row, 1 = after the first row, blank = at the end.</p></div>'}
 function setP(p,v){const a=p.split('.');let o=S;for(let i=0;i<a.length-1;i++)o=o[a[i]];o[a.at(-1)]=v}
 const ready=()=>document.fonts.load(`700 20px "${S.font}"`).then(render,render);
 $('#ed').addEventListener('input',e=>{const t=e.target,k=t.dataset.k;if(!k)return;setP(k,t.type=='range'?+t.value:t.value);k=='font'?ready():render()});
@@ -224,7 +226,7 @@ $('#ed').addEventListener('click',e=>{const a=e.target.dataset.a,i=+e.target.dat
  if(a=='dr')S.rows.splice(i,1);
  if(a=='ac'){S.head.push({t:'New',s:'',c:'#e8e8e8'});S.rows.forEach(r=>r.cells.push({t:'',s:'',c:BLUE}))}
  if(a=='dc'&&S.head.length>1){S.head.splice(i,1);S.rows.forEach(r=>r.cells.splice(i,1))}
- if(a=='an')S.notes.push({d:'',m:'',day:'',t:'Exam',s:'',c:RED});
+ if(a=='an')S.notes.push({d:'',m:'',day:'',t:'Exam',s:'',c:RED,pos:''});
  if(a=='dn')S.notes.splice(i,1);
  build();render()});
 $('#dl').onclick=()=>cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='routine.png';a.click()});
