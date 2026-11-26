@@ -1,23 +1,41 @@
 // Homepage playlist rows: one separate section per playlist, each scrolling
 // right-to-left. Sections: Live Events + 5 admin playlists + Recents & Favs.
+// Card badges show the REAL stream status (ON / OFF / checking), proved with
+// the site's own deep stream prober. Protected CDNs are routed through the
+// site proxy so the player can actually load them.
 (function () {
   "use strict";
 
   var RECENT_KEY = "shamim_last_watched_v1";
+  var STATUS_KEY = "shamim_playlist_status_v1";
+  var STATUS_TTL = 15 * 60 * 1000;
   var RECENT_LIMIT = 40;
   var LIVE_KEY = "__live_events__";
   var RECENT_TAB = "__recent_favs__";
+  var MAX_PROBES = 6;
 
   var LIVE_DEFS = [
     { name: "TapMad", url: typeof M3U_URL_TAPMAD !== "undefined" ? M3U_URL_TAPMAD : "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u", type: "m3u" },
     { name: "FanCode", url: typeof M3U_URL_FANCODE !== "undefined" ? M3U_URL_FANCODE : "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u", type: "m3u" },
     { name: "FanCode BD", url: typeof M3U_URL_FANCODE_BD !== "undefined" ? M3U_URL_FANCODE_BD : "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.json", type: "json" },
-    { name: "SonyLiv", url: typeof M3U_URL_SONYLIV !== "undefined" ? M3U_URL_SONYLIV : "https://srhady-sliv.hf.space/live.m3u", type: "m3u" },
+    { name: "SonyLiv", url: typeof M3U_URL_SONYLIV !== "undefined" ? M3U_URL_SONYLIV : "https://srhady-sliv.hf.space/live.m3u", type: "m3u" }
+  ];
+
+  // Hosts that reject browser requests (CORS / Referer checks). The site proxy
+  // supplies the headers and rewrites nested playlist URLs through itself.
+  var PROXY_HOSTS = [
+    "fancode.com",
+    "tapmad.com",
+    "akamaized.net",
+    "githubusercontent.com"
   ];
 
   var loaded = new Map();
   var sections = [];
   var scrollPaused = new WeakMap();
+  var statusCache = readJSON(STATUS_KEY, {});
+  var probeQueue = [];
+  var activeProbes = 0;
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
@@ -36,18 +54,114 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
   }
 
-  function makeChannel(source) {
+  function proxyBase() {
+    return typeof STREAM_PROXY_BASE !== "undefined"
+      ? STREAM_PROXY_BASE
+      : "https://shamimiptv.pages.dev/api/proxy?url=";
+  }
+
+  function needsProxy(url) {
+    try {
+      var host = new URL(url).hostname.toLowerCase();
+      return PROXY_HOSTS.some(function (suffix) {
+        return host === suffix || host.endsWith("." + suffix);
+      });
+    } catch (_) { return false; }
+  }
+
+  function prepareSources(urls) {
+    return (urls || []).map(function (url) {
+      return needsProxy(url) ? proxyBase() + encodeURIComponent(url) : url;
+    });
+  }
+
+  function mainChannels() {
+    return typeof CHANNELS !== "undefined" && Array.isArray(CHANNELS) ? CHANNELS : [];
+  }
+
+  function applyStatus(ch, entry) {
+    ch.liveStatus = entry.status === "on" ? "on" : entry.status === "off" ? "off" : "checking";
+    ch.verifiedUrl = entry.url || null;
+    ch.verifiedAt = entry.ts || 0;
+  }
+
+  function seedStatus(ch) {
+    if (ch.isOff) { ch.liveStatus = "off"; return; }
+    var cached = statusCache[ch.id];
+    if (cached && Date.now() - cached.ts < STATUS_TTL) {
+      applyStatus(ch, cached);
+      return;
+    }
+    var same = mainChannels().find(function (item) { return item.id === ch.id; });
+    if (same && same.liveStatus === "off") {
+      // A real grid channel already proved dead — trust it.
+      ch.liveStatus = "off";
+      return;
+    }
+    ch.liveStatus = "checking";
+    probeQueue.push(ch);
+  }
+
+  function makeChannel(source, skipStatus) {
     var tags = source.sourceTags;
     if (tags && !Array.isArray(tags) && typeof tags.forEach === "function") tags = Array.from(tags);
-    return {
+    var ch = {
       id: source.id || String(source.name || "channel").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       name: source.name || "Unknown",
       logo: source.logo || "",
       group: source.group || "Others",
-      sources: (source.sources || []).slice(),
+      sources: prepareSources(source.sources),
       sourceTags: new Set(tags || []),
-      liveStatus: "on"
+      liveStatus: "checking",
+      verifiedUrl: null,
+      verifiedAt: 0,
+      isOff: !!source.isOff
     };
+    if (!skipStatus) seedStatus(ch);
+    return ch;
+  }
+
+  function pumpProbeQueue() {
+    while (probeQueue.length && activeProbes < MAX_PROBES) {
+      var ch = probeQueue.shift();
+      if (!ch.sources.length) { ch.liveStatus = "off"; updateBadge(ch); continue; }
+      activeProbes++;
+      (async function () {
+        var status = "off";
+        var url = null;
+        try {
+          if (typeof probeRaceSources === "function") {
+            var result = await probeRaceSources(ch.sources.slice(0, 2));
+            if (result && result.ok) { status = "on"; url = result.rawUrl; }
+          }
+        } catch (_) {}
+        applyStatus(ch, { status: status, url: url, ts: Date.now() });
+        statusCache[ch.id] = { status: ch.liveStatus, url: ch.verifiedUrl, ts: ch.verifiedAt };
+        writeJSON(STATUS_KEY, statusCache);
+        updateBadge(ch);
+        activeProbes--;
+        pumpProbeQueue();
+      })();
+    }
+  }
+
+  function statusLabel(status) {
+    if (status === "on") return "ON";
+    if (status === "off") return "OFF";
+    return "•••";
+  }
+
+  function updateBadge(ch) {
+    var cards = document.querySelectorAll(".le-card[data-le-id]");
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].dataset.leId !== ch.id) continue;
+      var badge = cards[i].querySelector(".le-badge");
+      if (!badge) continue;
+      badge.className = "le-badge status-" + ch.liveStatus;
+      badge.textContent = statusLabel(ch.liveStatus);
+      badge.title = "Stream status: " + ch.liveStatus;
+      cards[i].classList.toggle("is-off", ch.liveStatus === "off");
+    }
   }
 
   function manualParse(text, tag) {
@@ -100,11 +214,8 @@
       console.warn("Could not load " + key + ": " + error.message);
     }
     loaded.set(key, channels);
+    pumpProbeQueue();
     return channels;
-  }
-
-  function mainChannels() {
-    return typeof CHANNELS !== "undefined" && Array.isArray(CHANNELS) ? CHANNELS : [];
   }
 
   function liveChannels() {
@@ -118,7 +229,7 @@
   }
 
   function recentAndFavoriteChannels() {
-    var result = readJSON(RECENT_KEY, []).map(makeChannel);
+    var result = readJSON(RECENT_KEY, []).map(function (item) { return makeChannel(item, true); });
     var favKey = typeof LS_FAV !== "undefined" ? LS_FAV : "obiram_favorites";
     var pool = mainChannels().slice();
     sections.forEach(function (section) {
@@ -128,14 +239,16 @@
 
     readJSON(favKey, []).forEach(function (id) {
       var found = pool.find(function (ch) { return ch.id === id; });
-      if (found && !result.some(function (ch) { return ch.id === found.id; })) result.push(makeChannel(found));
+      if (found && !result.some(function (ch) { return ch.id === found.id; })) {
+        result.push(makeChannel(found, true));
+      }
     });
     return result;
   }
 
   function recordRecent(channel) {
     if (!channel || !channel.name) return;
-    var snapshot = makeChannel(channel);
+    var snapshot = makeChannel(channel, true);
     var list = readJSON(RECENT_KEY, []).filter(function (item) { return item.id !== snapshot.id; });
     list.unshift({
       id: snapshot.id,
@@ -175,19 +288,38 @@
     }, 2400);
   }
 
+  function leToast(message) {
+    var el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add("show");
+    setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
   function cardFor(channel) {
     var card = document.createElement("div");
-    card.className = "le-card";
+    card.className = "le-card" + (channel.liveStatus === "off" ? " is-off" : "");
+    card.dataset.leId = channel.id;
     var initials = channel.name.slice(0, 2).toUpperCase();
     var logoHtml = channel.logo
       ? '<img src="' + esc(channel.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<div class=&quot;chan-logo-fallback&quot;>' + esc(initials) + '</div>\'">'
       : '<div class="chan-logo-fallback">' + esc(initials) + "</div>";
     card.innerHTML =
-      '<div class="le-logo"><span class="le-badge">▶</span>' + logoHtml + "</div>" +
+      '<div class="le-logo"><span class="le-badge status-' + channel.liveStatus + '" title="Stream status: ' +
+      channel.liveStatus + '">' + statusLabel(channel.liveStatus) + "</span>" + logoHtml + "</div>" +
       '<div class="le-name">' + esc(channel.name) + "</div>" +
       '<div class="le-group">' + esc(channel.group || "Others") + "</div>";
     card.addEventListener("click", function () {
+      if (channel.liveStatus === "off") {
+        leToast("এই চ্যানেলটি এখন চালু নেই (OFF)");
+        return;
+      }
+      if (channel.liveStatus === "checking") {
+        leToast("স্ট্রিম যাচাই করা হচ্ছে — একটু পরে চেষ্টা করুন");
+        return;
+      }
       if (typeof window.openPlayer === "function") window.openPlayer(channel);
+      else leToast("Selected: " + channel.name);
     });
     return card;
   }
