@@ -15,7 +15,7 @@ const M3U_SOURCES = [
   { url: M3U_URL_FANCODE, type: "m3u", source: "FanCode" },
   { url: M3U_URL_FANCODE_BD, type: "json", source: "FanCode_BD" },
   { url: M3U_URL_TAPMAD, type: "m3u", source: "TapMad" },
-  { url: M3U_URL_SONYLIV, type: "m3u", source: " SonyLiv" },
+  { url: M3U_URL_SONYLIV, type: "m3u", source: "SonyLiv" },
 ];
 const SOURCE_NAMES = M3U_SOURCES.map((s) => s.source);
 
@@ -43,7 +43,7 @@ function proxyWrapStream(url) {
 // Referer) — this is exactly what the old playlist=fancode proxy route used
 // to do for them before the proxy was removed. Override from admin-config.json
 // with "proxySources": [...] ; use [] to turn it off completely.
-let PROXY_SOURCES = new Set(["FanCode", "FanCode_BD"]);
+let PROXY_SOURCES = new Set(["FanCode", "FanCode_BD", "TapMad", "SonyLiv"]);
 const PROXIED_URLS = new Set(); // raw stream URLs that came from a PROXY_SOURCES playlist
 
 function playbackUrl(url) {
@@ -2460,7 +2460,7 @@ async function startChannelPlayback(ch) {
 // Move the proven mirror to the front of the server list.
 function cvPrioritizeSource(rawUrl) {
   if (!rawUrl) return;
-  const idx = currentServerList.findIndex((s) => realUrl(s.url) === rawUrl);
+  const idx = currentServerList.findIndex((s) => realUrl(s.url) === realUrl(rawUrl));
   if (idx > 0) {
     const [item] = currentServerList.splice(idx, 1);
     currentServerList.unshift(item);
