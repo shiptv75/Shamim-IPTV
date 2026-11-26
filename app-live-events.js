@@ -119,7 +119,8 @@
       const channels = [...seen.values()].filter((ch) =>
         filter === "all" ? true : ch.sourceTags.has(filter)
       );
-      if (count) count.textContent = channels.length ? String(channels.length) : "";
+      const countEl = document.getElementById("leCount");
+      if (countEl) countEl.textContent = channels.length ? String(channels.length) : "";
       if (!channels.length) {
         row.innerHTML = '<div class="empty-state"><p>No live events found for this playlist.</p></div>';
         return;
