@@ -8,6 +8,13 @@
   var RECENT_KEY_TAB = "__recent_favs__";
   var RECENT_LIMIT = 40;
 
+  var LIVE_DEFS = [
+    { name: "TapMad", url: typeof M3U_URL_TAPMAD !== "undefined" ? M3U_URL_TAPMAD : "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u", type: "m3u" },
+    { name: "FanCode", url: typeof M3U_URL_FANCODE !== "undefined" ? M3U_URL_FANCODE : "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u", type: "m3u" },
+    { name: "FanCode BD", url: typeof M3U_URL_FANCODE_BD !== "undefined" ? M3U_URL_FANCODE_BD : "https://raw.githubusercontent.com/srhady/Fancode-bd/refs/heads/main/main_playlist.json", type: "json" },
+    { name: "SonyLiv", url: typeof M3U_URL_SONYLIV !== "undefined" ? M3U_URL_SONYLIV : "https://srhady-sliv.hf.space/live.m3u", type: "m3u" },
+  ];
+
   var section, row, countEl, tabNav;
   var activeKey = LIVE_KEY;
   var loaded = new Map();
@@ -84,6 +91,13 @@
         if (!response.ok) throw new Error("HTTP " + response.status);
         text = await response.text();
       }
+      if (definition.type === "json") {
+        var data = JSON.parse(text);
+        text = typeof window.jsonPlaylistToM3U === "function"
+          ? window.jsonPlaylistToM3U(data)
+          : null;
+        if (!text) throw new Error("no playable matches in JSON source");
+      }
       channels = typeof window.adminParse === "function"
         ? window.adminParse(text).map(function (ch) { return makeChannel(ch); })
         : manualParse(text, key);
@@ -100,11 +114,13 @@
   }
 
   function liveChannels() {
-    return mainChannels().filter(function (ch) {
-      return ch.sourceTags && Array.from(ch.sourceTags).some(function (tag) {
-        return typeof LIVE_EVENTS_SOURCE_TAGS !== "undefined" && LIVE_EVENTS_SOURCE_TAGS.has(tag);
-      }) && ch.liveStatus === "on";
+    var result = [];
+    LIVE_DEFS.forEach(function (definition) {
+      (loaded.get(definition.name) || []).forEach(function (channel) {
+        if (!result.some(function (existing) { return existing.id === channel.id; })) result.push(channel);
+      });
     });
+    return result;
   }
 
   function recentAndFavoriteChannels() {
@@ -270,11 +286,13 @@
     hookSiteFunctions();
     render(activeKey);
 
+    var definitions = LIVE_DEFS.slice();
     if (typeof ADMIN_PLAYLISTS !== "undefined" && Array.isArray(ADMIN_PLAYLISTS)) {
-      Promise.allSettled(ADMIN_PLAYLISTS.map(loadPlaylist)).then(function () {
-        if (activeKey !== LIVE_KEY && activeKey !== RECENT_KEY_TAB) render(activeKey);
-      });
+      definitions = definitions.concat(ADMIN_PLAYLISTS);
     }
+    Promise.allSettled(definitions.map(loadPlaylist)).then(function () {
+      render(activeKey);
+    });
   }
 
   if (document.readyState === "loading") {
