@@ -111,7 +111,10 @@
 
     if (count) count.textContent = seen.size;
 
+    let currentFilter = "all";
+
     function render(filter) {
+      currentFilter = filter;
       row.innerHTML = "";
       const channels = [...seen.values()].filter((ch) =>
         filter === "all" ? true : ch.sourceTags.has(filter)
@@ -139,7 +142,30 @@
       });
     }
 
-    render("all");
+    render(currentFilter);
+
+    // app.js also renders this row and clears it on status changes. Re-apply
+    // our tab view straight after its render so both features stay visible.
+    const baseRender = window.renderLiveEventsRow;
+    if (typeof baseRender === "function") {
+      window.renderLiveEventsRow = function () {
+        const result = baseRender.apply(this, arguments);
+        if (seen.size) {
+          section.classList.remove("hidden");
+          render(currentFilter);
+        }
+        return result;
+      };
+    }
+    const baseSync = window.syncLiveEventsVisibility;
+    if (typeof baseSync === "function") {
+      window.syncLiveEventsVisibility = function () {
+        const result = baseSync.apply(this, arguments);
+        if (seen.size) section.classList.remove("hidden");
+        return result;
+      };
+    }
+
     tabNav.addEventListener("click", (event) => {
       const button = event.target.closest(".live-event-tab-btn");
       if (!button) return;
