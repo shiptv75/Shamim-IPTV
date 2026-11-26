@@ -94,7 +94,7 @@
       }
     }
 
-    const sources = [...bySource.keys()];
+    const sources = LIVE_TAB_PLAYLISTS.map((playlist) => playlist.name);
     const tabNav = document.createElement("div");
     tabNav.className = "live-event-tab-nav";
     const makeButton = (label, value, active) => {
