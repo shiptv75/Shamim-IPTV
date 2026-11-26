@@ -158,16 +158,23 @@ export async function onRequest(context) {
     // আংশিক টেক্সট আসে আর URL রিরাইটিং ভেঙে যায়।
     const isPlaylistUrl = /\.m3u8?(\?|$)/i.test(targetUrl);
 
-    const upstreamHeaders = {
-      'User-Agent': USER_AGENT,
-      'Referer': targetOrigin + '/',
-      'Origin': targetOrigin
-    };
-
+    // Some CDNs (notably SonyLiv/Akamai) reject the full browser-style header
+    // set when the request comes from Cloudflare. Try a few header shapes and
+    // keep the first response that is not a 403.
     const rangeHeader = request.headers.get('Range');
-    if (rangeHeader && !isPlaylistUrl) upstreamHeaders['Range'] = rangeHeader;
+    const headerSets = [
+      { 'User-Agent': USER_AGENT, 'Referer': targetOrigin + '/', 'Origin': targetOrigin },
+      { 'User-Agent': USER_AGENT, 'Referer': 'https://www.sonyliv.com/' },
+      { 'Referer': targetOrigin + '/' }
+    ];
 
-    const response = await fetchWithTimeout(targetUrl, { headers: upstreamHeaders });
+    let response = null;
+    for (const headers of headerSets) {
+      const attemptHeaders = { ...headers };
+      if (rangeHeader && !isPlaylistUrl) attemptHeaders['Range'] = rangeHeader;
+      response = await fetchWithTimeout(targetUrl, { headers: attemptHeaders });
+      if (response.ok || response.status !== 403) break;
+    }
 
     if (!response.ok) {
       return jsonResponse({ error: `Stream failed (${response.status})` }, response.status);
