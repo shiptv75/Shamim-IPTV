@@ -1,185 +1,285 @@
-// Live Events tabs for the homepage.
-// Isolated in an IIFE so its names never collide with app.js globals.
+// Homepage LIVE EVENTS section with one tab per playlist.
+// 7 tabs: Live Events + 5 admin playlists + Last Watched & Favs.
 (function () {
   "use strict";
 
-  // One tab per playlist. Edit this list to add/remove tabs.
-  const LIVE_TAB_PLAYLISTS = [
-    { name: "SHIPTV", url: "https://raw.githubusercontent.com/shiptv75/SHIPTV/refs/heads/main/playlist.m3u" },
-    { name: "FanCode", url: "https://raw.githubusercontent.com/sportlive18/Fancode-New-Auto-Update/refs/heads/main/fancode.m3u" },
-    { name: "TapMad", url: "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u" },
-    { name: "SonyLiv", url: "https://srhady-sliv.hf.space/live.m3u" },
-  ];
+  var RECENT_KEY = "shamim_last_watched_v1";
+  var LIVE_KEY = "__live_events__";
+  var RECENT_KEY_TAB = "__recent_favs__";
+  var RECENT_LIMIT = 40;
 
-  async function fetchM3U(url) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (response.ok) return await response.text();
-    } catch (_) { /* try the proxy below */ }
-    const proxy = "https://corsproxy.io/?url=" + encodeURIComponent(url);
-    const response = await fetch(proxy, { cache: "no-store" });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    return await response.text();
+  var section, row, countEl, tabNav;
+  var activeKey = LIVE_KEY;
+  var loaded = new Map();
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
   }
 
-  function parseM3U(text, sourceTag) {
-    const channels = [];
-    let pending = null;
-    const lines = text.replace(/\r\n/g, "\n").split("\n");
+  function readJSON(key, fallback) {
+    try {
+      var value = JSON.parse(localStorage.getItem(key));
+      return value == null ? fallback : value;
+    } catch (_) { return fallback; }
+  }
 
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line || line.startsWith("#EXTM3U")) continue;
+  function writeJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+  }
 
-      if (line.startsWith("#EXTINF")) {
-        if (pending && pending.sources.length) channels.push(pending);
-        const comma = line.lastIndexOf(",");
-        const name = (comma === -1 ? "Unknown" : line.slice(comma + 1)).trim() || "Unknown";
-        const logo = line.match(/tvg-logo="([^"]*)"/)?.[1] || "";
-        const group = line.match(/group-title="([^"]*)"/)?.[1] || "Others";
-        pending = { name, logo, group: group || "Others", sources: [], sourceTag };
-      } else if (!line.startsWith("#") && /^https?:\/\//i.test(line)) {
-        if (!pending) pending = { name: "Unknown", logo: "", group: "Others", sources: [], sourceTag };
-        pending.sources.push(line);
-      }
+  function makeChannel(source) {
+    var tags = source.sourceTags;
+    if (tags && !Array.isArray(tags) && typeof tags.forEach === "function") {
+      tags = Array.from(tags);
     }
-    if (pending && pending.sources.length) channels.push(pending);
+    return {
+      id: source.id || source.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      name: source.name || "Unknown",
+      logo: source.logo || "",
+      group: source.group || "Others",
+      sources: (source.sources || []).slice(),
+      sourceTags: new Set(tags || []),
+      liveStatus: "on"
+    };
+  }
+
+  function manualParse(text, tag) {
+    var byName = new Map();
+    String(text || "").replace(/\r\n/g, "\n").split("\n").forEach(function (line) {
+      line = line.trim();
+      if (!line || line.indexOf("#EXTINF") === 0) {
+        if (line.indexOf("#EXTINF") === 0) {
+          var comma = line.lastIndexOf(",");
+          var name = (comma === -1 ? "Unknown" : line.slice(comma + 1)).trim() || "Unknown";
+          var logo = (line.match(/tvg-logo="([^"]*)"/) || [])[1] || "";
+          var group = (line.match(/group-title="([^"]*)"/) || [])[1] || "Others";
+          byName.set(name, makeChannel({ name: name, logo: logo, group: group, sources: [], sourceTags: [tag] }));
+        }
+        return;
+      }
+      if (line.charAt(0) === "#" || !/^https?:\/\//i.test(line)) return;
+      var last = Array.from(byName.values()).pop();
+      if (!last) {
+        last = makeChannel({ name: "Unknown", sources: [], sourceTags: [tag] });
+        byName.set(last.id, last);
+      }
+      if (last.sources.indexOf(line) === -1) last.sources.push(line);
+    });
+    return Array.from(byName.values()).filter(function (ch) { return ch.sources.length; });
+  }
+
+  async function loadPlaylist(definition) {
+    var key = definition.name;
+    if (loaded.has(key)) return loaded.get(key);
+
+    var channels = [];
+    try {
+      var text;
+      if (typeof window.toolsFetchText === "function") {
+        text = await window.toolsFetchText(definition.url);
+      } else {
+        var response = await fetch(definition.url, { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        text = await response.text();
+      }
+      channels = typeof window.adminParse === "function"
+        ? window.adminParse(text).map(function (ch) { return makeChannel(ch); })
+        : manualParse(text, key);
+      channels.forEach(function (ch) { ch.sourceTags.add(key); });
+    } catch (error) {
+      console.warn("Live Events tab failed to load " + key + ": " + error.message);
+    }
+    loaded.set(key, channels);
     return channels;
   }
 
-  function leToast(message) {
-    const el = document.getElementById("toast");
-    if (!el) { console.log(message); return; }
-    el.textContent = message;
-    el.classList.remove("hidden");
-    clearTimeout(leToast.timer);
-    leToast.timer = setTimeout(() => el.classList.add("hidden"), 2200);
+  function mainChannels() {
+    return typeof CHANNELS !== "undefined" && Array.isArray(CHANNELS) ? CHANNELS : [];
   }
 
-  async function initAdminLiveEvents() {
-    const section = document.getElementById("liveEventsSection");
-    const row = document.getElementById("liveEventsRow");
-    const count = document.getElementById("leCount");
-    if (!section || !row) return;
-    if (row.parentElement.querySelector(".live-event-tab-nav")) return;
+  function liveChannels() {
+    return mainChannels().filter(function (ch) {
+      return ch.sourceTags && Array.from(ch.sourceTags).some(function (tag) {
+        return typeof LIVE_EVENTS_SOURCE_TAGS !== "undefined" && LIVE_EVENTS_SOURCE_TAGS.has(tag);
+      }) && ch.liveStatus === "on";
+    });
+  }
 
-    const bySource = new Map();
-    const seen = new Map();
+  function recentAndFavoriteChannels() {
+    var recents = readJSON(RECENT_KEY, []).map(makeChannel);
+    var favKey = typeof LS_FAV !== "undefined" ? LS_FAV : "obiram_favorites";
+    var favIds = readJSON(favKey, []);
+    var pool = mainChannels();
+    var result = recents.slice();
 
-    for (const playlist of LIVE_TAB_PLAYLISTS) {
-      try {
-        const channels = parseM3U(await fetchM3U(playlist.url), playlist.name);
-        if (!channels.length) continue;
-        bySource.set(playlist.name, channels);
-
-        channels.forEach((ch) => {
-          const key = ch.name.toLowerCase();
-          let entry = seen.get(key);
-          if (!entry) {
-            entry = {
-              id: "le-" + Math.random().toString(36).slice(2),
-              name: ch.name,
-              logo: ch.logo,
-              group: ch.group,
-              sources: [],
-              sourceTags: new Set(),
-            };
-            seen.set(key, entry);
-          }
-          ch.sources.forEach((url) => { if (!entry.sources.includes(url)) entry.sources.push(url); });
-          entry.sourceTags.add(ch.sourceTag);
-        });
-      } catch (error) {
-        console.warn("Live Events: cannot load " + playlist.name + " — " + error.message);
+    favIds.forEach(function (id) {
+      var found = pool.find(function (ch) { return ch.id === id; });
+      if (!found && activeTabChannels) found = activeTabChannels.find(function (ch) { return ch.id === id; });
+      if (found && !result.some(function (ch) { return ch.id === found.id; })) {
+        result.push(makeChannel(found));
       }
-    }
+    });
+    return result;
+  }
 
-    const sources = LIVE_TAB_PLAYLISTS.map((playlist) => playlist.name);
-    const tabNav = document.createElement("div");
+  var activeTabChannels = [];
+
+  function recordRecent(channel) {
+    if (!channel || !channel.name) return;
+    var snapshot = makeChannel(channel);
+    var list = readJSON(RECENT_KEY, []).filter(function (item) { return item.id !== snapshot.id; });
+    list.unshift({
+      id: snapshot.id,
+      name: snapshot.name,
+      logo: snapshot.logo,
+      group: snapshot.group,
+      sources: snapshot.sources,
+      sourceTags: Array.from(snapshot.sourceTags),
+      at: Date.now()
+    });
+    writeJSON(RECENT_KEY, list.slice(0, RECENT_LIMIT));
+    if (activeKey === RECENT_KEY_TAB) render(RECENT_KEY_TAB);
+  }
+
+  function cardFor(channel) {
+    var card = document.createElement("div");
+    card.className = "le-card";
+    var initials = channel.name.slice(0, 2).toUpperCase();
+    var logoHtml = channel.logo
+      ? '<img src="' + esc(channel.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<div class=&quot;chan-logo-fallback&quot;>' + esc(initials) + '</div>\'">'
+      : '<div class="chan-logo-fallback">' + esc(initials) + "</div>";
+    card.innerHTML =
+      '<div class="le-logo"><span class="le-badge">▶</span>' + logoHtml + "</div>" +
+      '<div class="le-name">' + esc(channel.name) + "</div>" +
+      '<div class="le-group">' + esc(channel.group || "Others") + "</div>";
+    card.addEventListener("click", function () {
+      if (typeof window.openPlayer === "function") window.openPlayer(channel);
+    });
+    return card;
+  }
+
+  function render(key) {
+    if (!row) return;
+    activeKey = key;
+    var channels;
+
+    if (key === LIVE_KEY) channels = liveChannels();
+    else if (key === RECENT_KEY_TAB) channels = recentAndFavoriteChannels();
+    else channels = loaded.get(key) || [];
+
+    channels = channels.filter(function (ch) { return ch && ch.sources && ch.sources.length; });
+    activeTabChannels = channels;
+    row.innerHTML = "";
+
+    if (countEl) countEl.textContent = channels.length ? String(channels.length) : "";
+    if (section) section.classList.remove("hidden");
+
+    if (!channels.length) {
+      row.innerHTML = '<div class="empty-state"><p>No channels found for this tab.</p></div>';
+      return;
+    }
+    channels.forEach(function (channel) { row.appendChild(cardFor(channel)); });
+  }
+
+  function tabDefinition(key) {
+    if (key === LIVE_KEY) return { key: key, label: "Live Events" };
+    if (key === RECENT_KEY_TAB) return { key: key, label: "Last Watched & Favs" };
+    return { key: key, label: key };
+  }
+
+  function buildTabs() {
+    var keys = [LIVE_KEY];
+    if (typeof ADMIN_PLAYLISTS !== "undefined" && Array.isArray(ADMIN_PLAYLISTS)) {
+      ADMIN_PLAYLISTS.forEach(function (definition) { keys.push(definition.name); });
+    } else {
+      ["XNIPTV", "Nafi TV", "Toffee", "SkyTop", "JagoBD"].forEach(function (name) { keys.push(name); });
+    }
+    keys.push(RECENT_KEY_TAB);
+
+    tabNav = document.createElement("div");
     tabNav.className = "live-event-tab-nav";
-    const makeButton = (label, value, active) => {
-      const button = document.createElement("button");
+    keys.forEach(function (key) {
+      var definition = tabDefinition(key);
+      var button = document.createElement("button");
       button.type = "button";
-      button.className = "live-event-tab-btn" + (active ? " active" : "");
-      button.dataset.source = value;
-      button.textContent = label;
-      return button;
-    };
-    tabNav.appendChild(makeButton(sources.length ? "All Live" : "All", "all", true));
-    sources.forEach((name) => tabNav.appendChild(makeButton(name, name, false)));
+      button.className = "live-event-tab-btn" + (key === activeKey ? " active" : "");
+      button.dataset.source = key;
+      button.textContent = definition.label;
+      tabNav.appendChild(button);
+    });
     row.parentElement.insertBefore(tabNav, row);
 
-    if (count) count.textContent = seen.size;
-
-    let currentFilter = "all";
-
-    function render(filter) {
-      currentFilter = filter;
-      row.innerHTML = "";
-      const channels = [...seen.values()].filter((ch) =>
-        filter === "all" ? true : ch.sourceTags.has(filter)
-      );
-      const countEl = document.getElementById("leCount");
-      if (countEl) countEl.textContent = channels.length ? String(channels.length) : "";
-      if (!channels.length) {
-        row.innerHTML = '<div class="empty-state"><p>No live events found for this playlist.</p></div>';
-        return;
-      }
-      channels.forEach((ch) => {
-        const card = document.createElement("div");
-        card.className = "mini-chan-card";
-        card.innerHTML =
-          '<div class="rc-icon-box">' +
-          (ch.logo
-            ? '<img src="' + ch.logo + '" alt="" referrerpolicy="no-referrer">'
-            : '<div class="chan-logo-fallback">' + ch.name.charAt(0) + "</div>") +
-          "</div>" +
-          '<div class="rc-name">' + ch.name + "</div>" +
-          '<div class="rc-grp">' + ch.group + "</div>";
-        card.addEventListener("click", () => {
-          if (typeof window.playChannel === "function") window.playChannel(ch);
-          else leToast("Selected: " + ch.name);
-        });
-        row.appendChild(card);
-      });
-    }
-
-    render(currentFilter);
-
-    // app.js also renders this row and clears it on status changes. Re-apply
-    // our tab view straight after its render so both features stay visible.
-    const baseRender = window.renderLiveEventsRow;
-    if (typeof baseRender === "function") {
-      window.renderLiveEventsRow = function () {
-        const result = baseRender.apply(this, arguments);
-        if (seen.size) {
-          section.classList.remove("hidden");
-          render(currentFilter);
-        }
-        return result;
-      };
-    }
-    const baseSync = window.syncLiveEventsVisibility;
-    if (typeof baseSync === "function") {
-      window.syncLiveEventsVisibility = function () {
-        const result = baseSync.apply(this, arguments);
-        if (seen.size) section.classList.remove("hidden");
-        return result;
-      };
-    }
-
-    tabNav.addEventListener("click", (event) => {
-      const button = event.target.closest(".live-event-tab-btn");
+    tabNav.addEventListener("click", function (event) {
+      var button = event.target.closest(".live-event-tab-btn");
       if (!button) return;
-      tabNav.querySelectorAll(".live-event-tab-btn").forEach((b) => b.classList.remove("active"));
-      button.classList.add("active");
+      tabNav.querySelectorAll(".live-event-tab-btn").forEach(function (item) {
+        item.classList.toggle("active", item === button);
+      });
       render(button.dataset.source);
     });
   }
 
+  function hookSiteFunctions() {
+    var baseOpen = window.openPlayer;
+    if (typeof baseOpen === "function") {
+      window.openPlayer = function (channel) {
+        recordRecent(channel);
+        return baseOpen.apply(this, arguments);
+      };
+    }
+    var baseAdmin = window.adminPlayChannel;
+    if (typeof baseAdmin === "function") {
+      window.adminPlayChannel = function (channel) {
+        recordRecent(channel);
+        return baseAdmin.apply(this, arguments);
+      };
+    }
+
+    var baseRender = window.renderLiveEventsRow;
+    if (typeof baseRender === "function") {
+      window.renderLiveEventsRow = function () {
+        var result = baseRender.apply(this, arguments);
+        if (tabNav) {
+          if (section) section.classList.remove("hidden");
+          if (activeKey === LIVE_KEY) render(LIVE_KEY);
+        }
+        return result;
+      };
+    }
+    var baseSync = window.syncLiveEventsVisibility;
+    if (typeof baseSync === "function") {
+      window.syncLiveEventsVisibility = function () {
+        var result = baseSync.apply(this, arguments);
+        if (tabNav && section) section.classList.remove("hidden");
+        return result;
+      };
+    }
+  }
+
+  function init() {
+    section = document.getElementById("liveEventsSection");
+    row = document.getElementById("liveEventsRow");
+    countEl = document.getElementById("leCount");
+    if (!section || !row) return;
+    if (row.parentElement.querySelector(".live-event-tab-nav")) return;
+
+    section.classList.remove("hidden");
+    buildTabs();
+    hookSiteFunctions();
+    render(activeKey);
+
+    if (typeof ADMIN_PLAYLISTS !== "undefined" && Array.isArray(ADMIN_PLAYLISTS)) {
+      Promise.allSettled(ADMIN_PLAYLISTS.map(loadPlaylist)).then(function () {
+        if (activeKey !== LIVE_KEY && activeKey !== RECENT_KEY_TAB) render(activeKey);
+      });
+    }
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initAdminLiveEvents);
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    initAdminLiveEvents();
+    init();
   }
 })();
