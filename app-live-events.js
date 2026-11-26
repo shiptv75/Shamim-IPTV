@@ -1,8 +1,11 @@
 // Homepage playlist rows: one separate section per playlist, each scrolling
 // right-to-left. Sections: Live Events + 5 admin playlists + Recents & Favs.
-// Card badges show the REAL stream status (ON / OFF / checking), proved with
-// the site's own deep stream prober. Protected CDNs are routed through the
-// site proxy so the player can actually load them.
+//
+// Badges are the REAL stream status (ON / OFF / checking). For channels the
+// main grid already knows, the exact SAME channel object is reused — so the
+// homepage badge, the player, the main grid and the status cache can never
+// disagree. Channels unique to a homepage row are probed only when they come
+// into view, instead of hammering every one of the 600+ cards at page load.
 (function () {
   "use strict";
 
@@ -12,7 +15,7 @@
   var RECENT_LIMIT = 40;
   var LIVE_KEY = "__live_events__";
   var RECENT_TAB = "__recent_favs__";
-  var MAX_PROBES = 6;
+  var MAX_PROBES = 8;
 
   var LIVE_DEFS = [
     { name: "TapMad", url: typeof M3U_URL_TAPMAD !== "undefined" ? M3U_URL_TAPMAD : "https://gist.githubusercontent.com/albatr0ssss/3cff7a26be49b1d352c15f615067e7cd/raw/tapmad_bd.m3u", type: "m3u" },
@@ -21,8 +24,8 @@
     { name: "SonyLiv", url: typeof M3U_URL_SONYLIV !== "undefined" ? M3U_URL_SONYLIV : "https://srhady-sliv.hf.space/live.m3u", type: "m3u" }
   ];
 
-  // Hosts that reject browser requests (CORS / Referer checks). The site proxy
-  // supplies the headers and rewrites nested playlist URLs through itself.
+  // Hosts that reject direct browser requests (CORS / Referer checks). The site
+  // proxy supplies the headers and rewrites nested playlist URLs through itself.
   var PROXY_HOSTS = [
     "fancode.com",
     "tapmad.com",
@@ -33,9 +36,11 @@
   var loaded = new Map();
   var sections = [];
   var scrollPaused = new WeakMap();
+  var cardChannels = new WeakMap();
   var statusCache = readJSON(STATUS_KEY, {});
   var probeQueue = [];
   var activeProbes = 0;
+  var cardObserver = null;
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
@@ -54,6 +59,15 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
   }
 
+  // Matches app.js slugify(), including Bengali names, so a homepage card and
+  // the same channel in the main grid resolve to one and the same object.
+  function slug(value) {
+    return String(value || "chan")
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0980-\u09FF]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
   function proxyBase() {
     return typeof STREAM_PROXY_BASE !== "undefined"
       ? STREAM_PROXY_BASE
@@ -70,13 +84,44 @@
   }
 
   function prepareSources(urls) {
+    var base = proxyBase();
     return (urls || []).map(function (url) {
-      return needsProxy(url) ? proxyBase() + encodeURIComponent(url) : url;
+      if (!url || url.indexOf(base) === 0) return url; // already proxied
+      return needsProxy(url) ? base + encodeURIComponent(url) : url;
     });
   }
 
   function mainChannels() {
     return typeof CHANNELS !== "undefined" && Array.isArray(CHANNELS) ? CHANNELS : [];
+  }
+
+  function mainMap() {
+    var map = new Map();
+    mainChannels().forEach(function (ch) { if (ch && ch.id) map.set(ch.id, ch); });
+    return map;
+  }
+
+  function findMain(ch) {
+    if (!ch || !ch.id) return null;
+    return mainMap().get(ch.id) || null;
+  }
+
+  function tagSection(ch, tags) {
+    if (!ch) return;
+    if (!ch._sectionTags) ch._sectionTags = new Set();
+    (tags || []).forEach(function (tag) { if (tag) ch._sectionTags.add(tag); });
+  }
+
+  // If the main grid has since loaded this channel, hand its real object to the
+  // homepage card. That object already carries authoritative status, proof and
+  // the app's own proxy handling.
+  function resolveMain(ch) {
+    if (!ch || ch._sharedWithMain) return ch;
+    var main = findMain(ch);
+    if (!main) return ch;
+    tagSection(main, ch._sectionTags ? Array.from(ch._sectionTags) : []);
+    main._sharedWithMain = true;
+    return main;
   }
 
   function applyStatus(ch, entry) {
@@ -85,28 +130,43 @@
     ch.verifiedAt = entry.ts || 0;
   }
 
+  function enqueueProbe(ch, priority) {
+    if (!ch || ch._sharedWithMain || ch.liveStatus !== "checking" || ch._queued) return;
+    if (findMain(ch)) return; // main grid owns this channel's probe
+    ch._queued = true;
+    if (priority) probeQueue.unshift(ch);
+    else probeQueue.push(ch);
+    pumpProbeQueue();
+  }
+
   function seedStatus(ch) {
+    if (ch._sharedWithMain || findMain(ch)) return;
     if (ch.isOff) { ch.liveStatus = "off"; return; }
     var cached = statusCache[ch.id];
     if (cached && Date.now() - cached.ts < STATUS_TTL) {
       applyStatus(ch, cached);
       return;
     }
-    var same = mainChannels().find(function (item) { return item.id === ch.id; });
-    if (same && same.liveStatus === "off") {
-      // A real grid channel already proved dead — trust it.
-      ch.liveStatus = "off";
-      return;
-    }
     ch.liveStatus = "checking";
-    probeQueue.push(ch);
   }
 
   function makeChannel(source, skipStatus) {
     var tags = source.sourceTags;
     if (tags && !Array.isArray(tags) && typeof tags.forEach === "function") tags = Array.from(tags);
+    var id = source.id || slug(source.name);
+    var main = mainMap().get(id);
+
+    if (main) {
+      tagSection(main, tags);
+      main._sharedWithMain = true;
+      if (!skipStatus && main.liveStatus === "checking" && typeof window.enqueueProbe === "function") {
+        window.enqueueProbe(main, true);
+      }
+      return main;
+    }
+
     var ch = {
-      id: source.id || String(source.name || "channel").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      id: id,
       name: source.name || "Unknown",
       logo: source.logo || "",
       group: source.group || "Others",
@@ -115,8 +175,11 @@
       liveStatus: "checking",
       verifiedUrl: null,
       verifiedAt: 0,
-      isOff: !!source.isOff
+      isOff: !!source.isOff,
+      _sharedWithMain: false,
+      _queued: false
     };
+    tagSection(ch, tags);
     if (!skipStatus) seedStatus(ch);
     return ch;
   }
@@ -124,7 +187,19 @@
   function pumpProbeQueue() {
     while (probeQueue.length && activeProbes < MAX_PROBES) {
       var ch = probeQueue.shift();
+      ch._queued = false;
+      if (!ch || ch.liveStatus !== "checking") continue;
+
+      // The main grid may have loaded while this card was waiting.
+      var main = findMain(ch);
+      if (main) {
+        tagSection(main, Array.from(ch._sectionTags || []));
+        main._sharedWithMain = true;
+        updateBadge(main);
+        continue;
+      }
       if (!ch.sources.length) { ch.liveStatus = "off"; updateBadge(ch); continue; }
+
       activeProbes++;
       (async function () {
         var status = "off";
@@ -138,7 +213,15 @@
         applyStatus(ch, { status: status, url: url, ts: Date.now() });
         statusCache[ch.id] = { status: ch.liveStatus, url: ch.verifiedUrl, ts: ch.verifiedAt };
         writeJSON(STATUS_KEY, statusCache);
-        updateBadge(ch);
+        if (findMain(ch)) {
+          // Hand over to the authoritative object if it appeared mid-probe.
+          var nowMain = findMain(ch);
+          tagSection(nowMain, Array.from(ch._sectionTags || []));
+          nowMain._sharedWithMain = true;
+          updateBadge(nowMain);
+        } else {
+          updateBadge(ch);
+        }
         activeProbes--;
         pumpProbeQueue();
       })();
@@ -152,6 +235,7 @@
   }
 
   function updateBadge(ch) {
+    if (!ch || !ch.id) return;
     var cards = document.querySelectorAll(".le-card[data-le-id]");
     for (var i = 0; i < cards.length; i++) {
       if (cards[i].dataset.leId !== ch.id) continue;
@@ -162,6 +246,21 @@
       badge.title = "Stream status: " + ch.liveStatus;
       cards[i].classList.toggle("is-off", ch.liveStatus === "off");
     }
+  }
+
+  // Main-grid probes call their own badge updater, which does not know about
+  // homepage cards. This small mirror keeps both badge sets identical.
+  function syncMainStatuses() {
+    var needsRender = false;
+    sections.forEach(function (section) {
+      section.channels = (section.channels || []).map(function (ch) {
+        var resolved = resolveMain(ch);
+        if (resolved !== ch) needsRender = true;
+        return resolved;
+      });
+      section.channels.forEach(updateBadge);
+    });
+    if (needsRender) renderAll();
   }
 
   function manualParse(text, tag) {
@@ -209,7 +308,7 @@
       channels = typeof window.adminParse === "function"
         ? window.adminParse(text).map(makeChannel)
         : manualParse(text, key);
-      channels.forEach(function (ch) { ch.sourceTags.add(key); });
+      channels.forEach(function (ch) { tagSection(ch, [key]); });
     } catch (error) {
       console.warn("Could not load " + key + ": " + error.message);
     }
@@ -256,7 +355,7 @@
       logo: snapshot.logo,
       group: snapshot.group,
       sources: snapshot.sources,
-      sourceTags: Array.from(snapshot.sourceTags),
+      sourceTags: Array.from(snapshot.sourceTags || []),
       at: Date.now()
     });
     writeJSON(RECENT_KEY, list.slice(0, RECENT_LIMIT));
@@ -296,6 +395,23 @@
     setTimeout(function () { el.classList.remove("show"); }, 2200);
   }
 
+  function setupCardObserver() {
+    if (cardObserver || typeof IntersectionObserver !== "function") return;
+    cardObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var ch = cardChannels.get(entry.target);
+        cardObserver.unobserve(entry.target);
+        if (!ch || ch.liveStatus !== "checking") return;
+        if (ch._sharedWithMain) {
+          if (typeof window.enqueueProbe === "function") window.enqueueProbe(ch, true);
+        } else {
+          enqueueProbe(ch, true);
+        }
+      });
+    }, { rootMargin: "200px" });
+  }
+
   function cardFor(channel) {
     var card = document.createElement("div");
     card.className = "le-card" + (channel.liveStatus === "off" ? " is-off" : "");
@@ -314,13 +430,19 @@
         leToast("এই চ্যানেলটি এখন চালু নেই (OFF)");
         return;
       }
+      // "checking" is not a verdict. Let the player do its own fresh proof so a
+      // card is never dead just because the background sweep hasn't reached it.
       if (channel.liveStatus === "checking") {
-        leToast("স্ট্রিম যাচাই করা হচ্ছে — একটু পরে চেষ্টা করুন");
-        return;
+        if (channel._sharedWithMain && typeof window.enqueueProbe === "function") {
+          window.enqueueProbe(channel, true);
+        } else {
+          enqueueProbe(channel, true);
+        }
       }
       if (typeof window.openPlayer === "function") window.openPlayer(channel);
       else leToast("Selected: " + channel.name);
     });
+    cardChannels.set(card, channel);
     return card;
   }
 
@@ -332,8 +454,13 @@
     else if (section.key === RECENT_TAB) channels = recentAndFavoriteChannels();
     else channels = loaded.get(section.key) || [];
 
-    channels = channels.filter(function (ch) { return ch && ch.sources && ch.sources.length; });
+    channels = channels.map(resolveMain).filter(function (ch) {
+      return ch && ch.sources && ch.sources.length;
+    });
     section.channels = channels;
+    if (cardObserver) {
+      Array.from(section.row.children).forEach(function (card) { cardObserver.unobserve(card); });
+    }
     section.row.innerHTML = "";
     if (section.count) section.count.textContent = channels.length ? String(channels.length) : "";
     if (section.element) section.element.classList.remove("hidden");
@@ -342,7 +469,12 @@
       section.row.innerHTML = '<div class="empty-state"><p>No channels found.</p></div>';
       return;
     }
-    channels.forEach(function (channel) { section.row.appendChild(cardFor(channel)); });
+    setupCardObserver();
+    channels.forEach(function (channel) {
+      var card = cardFor(channel);
+      section.row.appendChild(card);
+      if (cardObserver && channel.liveStatus === "checking") cardObserver.observe(card);
+    });
     setupRowScroll(section.row);
   }
 
@@ -441,10 +573,15 @@
     createSection(RECENT_TAB, "Last Watched & Favs", anchor);
     setupRowScroll(liveRow);
     startGlobalScroll();
+    setupCardObserver();
     hookSiteFunctions();
     renderAll();
 
-    Promise.allSettled(LIVE_DEFS.concat(definitions).map(loadPlaylist)).then(renderAll);
+    Promise.allSettled(LIVE_DEFS.concat(definitions).map(loadPlaylist)).then(function () {
+      syncMainStatuses();
+      renderAll();
+    });
+    setInterval(syncMainStatuses, 800);
   }
 
   if (document.readyState === "loading") {
