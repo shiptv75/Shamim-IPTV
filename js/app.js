@@ -46,23 +46,13 @@ function proxyWrapStream(url) {
 let PROXY_SOURCES = new Set(["FanCode", "FanCode_BD", "TapMad", "SonyLiv"]);
 const PROXIED_URLS = new Set(); // raw stream URLs that came from a PROXY_SOURCES playlist
 
-// These playlists still publish plain http:// streams. An HTTPS page/WebView
-// blocks them as mixed content, so each request has to go through our own
-// HTTPS proxy (which is allowlisted for these hosts).
-const INSECURE_PROXY_HOSTS = new Set(["103.151.60.184"]);
-function needsInsecureProxy(url) {
-  try {
-    const u = new URL(url);
-    return u.protocol === "http:" && INSECURE_PROXY_HOSTS.has(u.hostname.toLowerCase());
-  } catch { return false; }
-}
-
 function playbackUrl(url) {
-  return PROXIED_URLS.has(url) || needsInsecureProxy(url) ? proxyWrapStream(url) : url;
+  return PROXIED_URLS.has(url) ? proxyWrapStream(url) : url;
 }
 function realUrl(url) {
   if (url && url.startsWith(STREAM_PROXY_BASE)) {
-    try { return decodeURIComponent(url.slice(STREAM_PROXY_BASE.length)); } catch {}
+    const tail = url.slice(STREAM_PROXY_BASE.length).replace(/&raw=1$/, "");
+    try { return decodeURIComponent(tail); } catch {}
   }
   return url;
 }
@@ -72,6 +62,9 @@ const CORS_PROXIES = [
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  // If all public proxies are down, use our own allowlisted proxy. Hosts not
+  // in its allowlist simply answer 403 and are ignored by Promise.any.
+  (u) => proxyWrapStream(u) + "&raw=1",
 ];
 
 const LS_FAV = "obiram_favorites";
