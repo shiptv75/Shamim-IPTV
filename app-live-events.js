@@ -252,6 +252,9 @@
     }
   }
 
+  // Let the main app update a homepage badge immediately after a forced recheck.
+  window.updateLeBadge = updateBadge;
+
   // Main-grid probes call their own badge updater, which does not know about
   // homepage cards. This small mirror keeps both badge sets identical.
   function syncMainStatuses() {
@@ -433,11 +436,11 @@
       if (channel.liveStatus === "off") {
         // A cached OFF is only a snapshot. Tapping the card forces a fresh
         // proof instead of leaving a recovered live event hidden for minutes.
+        delete statusCache[channel.id];
+        writeJSON(STATUS_KEY, statusCache);
         if (channel._sharedWithMain && typeof window.recheckChannelStatus === "function") {
           window.recheckChannelStatus(channel);
         } else {
-          delete statusCache[channel.id];
-          writeJSON(STATUS_KEY, statusCache);
           channel.liveStatus = "checking";
           channel.verifiedUrl = null;
           channel.verifiedAt = 0;
