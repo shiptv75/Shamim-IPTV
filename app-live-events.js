@@ -10,7 +10,7 @@
   "use strict";
 
   var RECENT_KEY = "shamim_last_watched_v1";
-  var STATUS_KEY = "shamim_playlist_status_v2";
+  var STATUS_KEY = "shamim_playlist_status_v3";
   var STATUS_TTL = 15 * 60 * 1000;
   // A failed live-event link often comes back within a couple of minutes.
   // Keep OFF short-lived so a recovered stream is not hidden for 15 minutes.
@@ -33,7 +33,8 @@
     "fancode.com",
     "tapmad.com",
     "akamaized.net",
-    "githubusercontent.com"
+    "githubusercontent.com",
+    "103.151.60.184" // routed through the Vercel proxy, not Cloudflare
   ];
 
   var loaded = new Map();
@@ -86,11 +87,20 @@
     } catch (_) { return false; }
   }
 
+  function proxyBaseFor(url) {
+    try {
+      var host = new URL(url).hostname.toLowerCase();
+      // KBTV's plain-HTTP host blocks Cloudflare egress but works through the
+      // Vercel proxy, which also rewrites the HLS segments through itself.
+      if (host === "103.151.60.184" && typeof ALT_PROXY_BASE !== "undefined") return ALT_PROXY_BASE;
+    } catch (_) {}
+    return proxyBase();
+  }
+
   function prepareSources(urls) {
-    var base = proxyBase();
     return (urls || []).map(function (url) {
-      if (!url || url.indexOf(base) === 0) return url; // already proxied
-      return needsProxy(url) ? base + encodeURIComponent(url) : url;
+      if (!url || url.indexOf(proxyBase()) === 0 || url.indexOf(proxyBaseFor(url)) === 0) return url; // already proxied
+      return needsProxy(url) ? proxyBaseFor(url) + encodeURIComponent(url) : url;
     });
   }
 
