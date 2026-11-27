@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/style.css?v=20261127e">
+<link rel="stylesheet" href="css/style.css?v=20261128a">
 </head>
 <body>
 
@@ -300,28 +300,48 @@
         <div class="tools-card-head green"><i class="fa-solid fa-circle-check"></i> M3U Checker</div>
         <div class="tools-card-body">
           <div class="chk-grid">
-            <div class="chk-col">
-              <label class="chk-label"><i class="fa-solid fa-bolt"></i> Single stream / playlist URL</label>
-              <input id="chkSingleUrl" class="tools-input" type="text" placeholder="https://example.com/stream.m3u8" autocomplete="off">
-              <div class="chk-btn-row">
-                <button id="chkPlayBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Play</button>
-                <button id="chkCheckBtn" class="btn-outline" type="button"><i class="fa-regular fa-clock"></i> Check</button>
-                <button id="chkBrowseBtn" class="btn-outline" type="button"><i class="fa-solid fa-folder-open"></i> Browse File</button>
-                <input id="chkFileInput" type="file" accept=".m3u,.m3u8,.txt,text/plain" hidden>
-                <span id="chkStatus" class="chk-status"></span>
+            <!-- LEFT: direct preview player -->
+            <div class="chk-col chk-player-col">
+              <label class="chk-label"><i class="fa-solid fa-play"></i> Stream Preview</label>
+              <div class="dp-player-aspect-frame controls-visible chk-player-frame" id="chkPlayerFrame">
+                <video id="chkVideo" playsinline="playsinline" muted="muted"></video>
+                <div class="chk-player-placeholder" id="chkPlayerPlaceholder">
+                  <i class="fa-solid fa-circle-play" style="font-size:34px;color:var(--sig);opacity:.8"></i>
+                  <span>Play an M3U/M3U8 link here</span>
+                </div>
+                <div class="cv-loading-ring" id="chkLoader"></div>
+                <div class="cv-controls">
+                  <div class="cv-controls-row">
+                    <button class="cv-btn" id="chkMiniPlayBtn" type="button" title="Play / Pause"><i class="fa-solid fa-play" id="chkMiniPlayIcon"></i></button>
+                    <div class="cv-vol-wrap">
+                      <button class="cv-btn" id="chkMiniMuteBtn" type="button" title="Mute / Unmute"><i class="fa-solid fa-volume-xmark" id="chkMiniMuteIcon"></i></button>
+                      <input class="cv-vol-slider" id="chkMiniVolume" max="1" min="0" step="0.05" value="0.8" type="range" aria-label="Volume">
+                    </div>
+                    <div class="cv-spacer"></div>
+                    <button class="cv-btn cv-btn-fs" id="chkMiniFullBtn" type="button" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                  </div>
+                </div>
               </div>
-              <div class="chk-btn-row">
-                <button id="chkClearBtn" class="btn-outline" type="button"><i class="fa-solid fa-xmark"></i> Clear</button>
-                <button id="chkRemoveCustomBtn" class="btn-outline" type="button"><i class="fa-solid fa-trash-can"></i> Remove Custom</button>
+              <div class="chk-player-meta">
+                <div class="chk-player-title" id="chkPlayerTitle">No stream playing</div>
+                <div class="chk-player-state" id="chkPlayerStatus">Paste an M3U/M3U8 link and press Play</div>
               </div>
             </div>
-            <div class="chk-col">
+
+            <!-- RIGHT: single stream + bulk input, one control row -->
+            <div class="chk-col chk-tools-col">
+              <label class="chk-label"><i class="fa-solid fa-bolt"></i> Single stream / playlist URL</label>
+              <input id="chkSingleUrl" class="tools-input" type="text" placeholder="https://example.com/stream.m3u8" autocomplete="off">
               <label class="chk-label"><i class="fa-solid fa-table-list"></i> M3U / URL / HTML bulk</label>
               <textarea id="chkBulk" class="tools-input chk-bulk" placeholder="M3U টেক্সট, প্লেলিস্ট/স্ট্রিম URL (প্রতি লাইনে একটা) বা HTML পেস্ট করুন…"></textarea>
-              <div class="chk-btn-row">
-                <button id="chkCheckAllBtn" class="btn-solid" type="button"><i class="fa-solid fa-circle-check"></i> Check All</button>
-                <button id="chkBulkClearBtn" class="btn-danger" type="button"><i class="fa-solid fa-trash"></i> Clear</button>
+              <div class="chk-btn-row chk-main-actions">
+                <button id="chkPlayBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Play</button>
+                <button id="chkCheckAllBtn" class="btn-outline" type="button"><i class="fa-solid fa-circle-check"></i> Check All</button>
+                <button id="chkBrowseBtn" class="btn-outline" type="button"><i class="fa-solid fa-folder-open"></i> Browse File</button>
+                <button id="chkRemoveCustomBtn" class="btn-outline" type="button"><i class="fa-solid fa-trash-can"></i> Remove Custom</button>
+                <input id="chkFileInput" type="file" accept=".m3u,.m3u8,.txt,text/plain" hidden>
               </div>
+              <div class="chk-status-line"><span id="chkStatus" class="chk-status"></span></div>
             </div>
           </div>
 
@@ -569,7 +589,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mpegts.js/1.7.3/mpegts.js"></script>
-<script src="js/app.js?v=20261127g"></script>
-<script src="app-live-events.js?v=20261127g"></script>
+<script src="js/app.js?v=20261128a"></script>
+<script src="app-live-events.js?v=20261128a"></script>
 </body>
 </html>
