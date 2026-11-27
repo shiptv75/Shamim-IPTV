@@ -33,8 +33,7 @@
     "fancode.com",
     "tapmad.com",
     "akamaized.net",
-    "githubusercontent.com",
-    "103.151.60.184" // KBTV plain-HTTP streams need the HTTPS proxy
+    "githubusercontent.com"
   ];
 
   var loaded = new Map();
