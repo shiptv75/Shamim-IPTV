@@ -931,6 +931,7 @@ a{ color: inherit; text-decoration: none; }
 body.tools-mode .tools-page{ display:block; }
 body.tools-mode .chip-bar-wrap,
 body.tools-mode .body-wrap,
+body.tools-mode .live-events-section,
 body.tools-mode #liveEventsSection{ display:none !important; }
 
 .tools-btn.active{ border-color: var(--sig); color: var(--sig); background: rgba(0,201,122,.12); }
@@ -1367,6 +1368,7 @@ html[data-theme="light"] .chk-badge.dead{ color:#b91c1c; background: rgba(220,38
 body.pg-mode .pg-page{ display:block; }
 body.pg-mode .chip-bar-wrap,
 body.pg-mode .body-wrap,
+body.pg-mode .live-events-section,
 body.pg-mode #liveEventsSection,
 body.pg-mode .tools-page,
 body.pg-mode .site-footer{ display:none !important; }
