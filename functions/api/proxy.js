@@ -32,7 +32,8 @@ const ALLOWED_HOST_SUFFIXES = [
   "fancode.com",          // FanCode / FanCode-BD স্ট্রিম CDN
   "githubusercontent.com", // raw / gist / objects.githubusercontent.com
   "tapmad.com",           // TapMad live streams (Referer-protected CDN)
-  "akamaized.net"         // SonyLiv live streams (CORS-blocked CDN)
+  "akamaized.net",        // SonyLiv live streams (CORS-blocked CDN)
+  "103.151.60.184"        // KBTV plain-HTTP streams (HTTPS pages cannot load them directly)
 ];
 
 // আপস্ট্রিম খুব ধীর হলে রিকোয়েস্ট আটকে না থাকার জন্য
