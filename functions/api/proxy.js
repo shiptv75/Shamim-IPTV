@@ -33,7 +33,7 @@ const ALLOWED_HOST_SUFFIXES = [
   "githubusercontent.com", // raw / gist / objects.githubusercontent.com
   "tapmad.com",           // TapMad live streams (Referer-protected CDN)
   "akamaized.net",        // SonyLiv live streams (CORS-blocked CDN)
-  "103.151.60.184"        // KBTV plain-HTTP streams (HTTPS pages cannot load them directly)
+  "iptv-kbtvpro.vercel.app" // KBTV playlist host (fallback when public CORS proxies fail)
 ];
 
 // আপস্ট্রিম খুব ধীর হলে রিকোয়েস্ট আটকে না থাকার জন্য
@@ -179,6 +179,17 @@ export async function onRequest(context) {
 
     if (!response.ok) {
       return jsonResponse({ error: `Stream failed (${response.status})` }, response.status);
+    }
+
+    // raw=1 is used when the checker only needs the playlist TEXT. Rewriting
+    // every channel through this proxy would break hosts that are not in the
+    // media allowlist (and would wrap already-proxied URLs a second time).
+    if (url.searchParams.get('raw') === '1') {
+      const rawContentType = response.headers.get('content-type') || 'text/plain';
+      return new Response(response.body, {
+        status: response.status,
+        headers: { ...CORS_HEADERS, 'Content-Type': rawContentType }
+      });
     }
 
     const contentType = response.headers.get('content-type') || '';
