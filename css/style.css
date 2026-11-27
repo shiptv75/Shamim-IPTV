@@ -982,12 +982,34 @@ body.tools-mode #liveEventsSection{ display:none !important; }
 .pl-store-btn.del:hover{ background: rgba(239,68,68,.15); }
 
 /* checker inputs */
-.chk-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:22px; }
+.chk-grid{ display:grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap:22px; align-items:start; }
 .chk-col{ display:flex; flex-direction:column; gap:10px; min-width:0; }
 .chk-label{ font-family: var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color: var(--sig); }
 .chk-btn-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .chk-bulk{ min-height:104px; resize:vertical; font-family: var(--font-mono); font-size:12px; }
 .chk-status{ font-size:12.5px; color: var(--muted); flex:1; min-width:120px; }
+
+/* M3U checker: preview on the left, inputs + one action row on the right */
+.chk-player-col{ gap:12px; }
+.chk-tools-col{ gap:10px; }
+.chk-player-frame{ border-radius:12px; border:1px solid rgba(255,255,255,.08); }
+.chk-player-frame video{ background:#000; }
+.chk-player-placeholder{
+  position:absolute; inset:0; z-index:4; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px; padding:20px;
+  text-align:center; font-size:12.5px; color:var(--muted); pointer-events:none;
+}
+.chk-player-frame.has-stream .chk-player-placeholder{ display:none; }
+.chk-player-frame .cv-controls{ padding-top:24px; }
+.chk-player-meta{
+  padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--surface-2); min-width:0;
+}
+.chk-player-title{ font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chk-player-state{ font-size:11.5px; color:var(--muted); margin-top:3px; }
+.chk-btn-row.chk-main-actions{ flex-wrap:nowrap; overflow-x:auto; padding-bottom:3px; }
+.chk-btn-row.chk-main-actions > button{ flex:0 0 auto; }
+.chk-status-line{ min-height:18px; }
 
 /* results */
 .chk-results{ margin-top:20px; border-top:1px solid var(--line); padding-top:16px; }
