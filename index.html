@@ -295,6 +295,59 @@
   <section id="toolsPage" class="tools-page">
     <div class="tools-wrap">
 
+      <!-- M3U Checker — kept first so it is immediately visible when Tools opens -->
+      <div class="tools-card" id="m3uCheckerCard">
+        <div class="tools-card-head green"><i class="fa-solid fa-circle-check"></i> M3U Checker</div>
+        <div class="tools-card-body">
+          <div class="chk-grid">
+            <div class="chk-col">
+              <label class="chk-label"><i class="fa-solid fa-bolt"></i> Single stream / playlist URL</label>
+              <input id="chkSingleUrl" class="tools-input" type="text" placeholder="https://example.com/stream.m3u8" autocomplete="off">
+              <div class="chk-btn-row">
+                <button id="chkPlayBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Play</button>
+                <button id="chkCheckBtn" class="btn-outline" type="button"><i class="fa-regular fa-clock"></i> Check</button>
+                <button id="chkBrowseBtn" class="btn-outline" type="button"><i class="fa-solid fa-folder-open"></i> Browse File</button>
+                <input id="chkFileInput" type="file" accept=".m3u,.m3u8,.txt,text/plain" hidden>
+                <span id="chkStatus" class="chk-status"></span>
+              </div>
+              <div class="chk-btn-row">
+                <button id="chkClearBtn" class="btn-outline" type="button"><i class="fa-solid fa-xmark"></i> Clear</button>
+                <button id="chkRemoveCustomBtn" class="btn-outline" type="button"><i class="fa-solid fa-trash-can"></i> Remove Custom</button>
+              </div>
+            </div>
+            <div class="chk-col">
+              <label class="chk-label"><i class="fa-solid fa-table-list"></i> M3U / URL / HTML bulk</label>
+              <textarea id="chkBulk" class="tools-input chk-bulk" placeholder="M3U টেক্সট, প্লেলিস্ট/স্ট্রিম URL (প্রতি লাইনে একটা) বা HTML পেস্ট করুন…"></textarea>
+              <div class="chk-btn-row">
+                <button id="chkCheckAllBtn" class="btn-solid" type="button"><i class="fa-solid fa-circle-check"></i> Check All</button>
+                <button id="chkBulkClearBtn" class="btn-danger" type="button"><i class="fa-solid fa-trash"></i> Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="chkResults" class="chk-results hidden">
+            <div class="chk-tabs" id="chkTabs">
+              <button class="chk-tab active" data-filter="all" type="button">All <span class="chk-tab-n" id="chkNAll">0</span></button>
+              <button class="chk-tab" data-filter="working" type="button"><i class="chk-dot working"></i> Working <span class="chk-tab-n" id="chkNWorking">0</span></button>
+              <button class="chk-tab" data-filter="blocked" type="button"><i class="chk-dot blocked"></i> Blocked <span class="chk-tab-n" id="chkNBlocked">0</span></button>
+              <button class="chk-tab" data-filter="dead" type="button"><i class="chk-dot dead"></i> Dead <span class="chk-tab-n" id="chkNDead">0</span></button>
+            </div>
+            <div class="chk-toolbar">
+              <span id="chkSummary" class="chk-summary"></span>
+              <div class="chk-toolbar-btns">
+                <button id="chkSelectAll" class="chk-tool-btn" type="button"><i class="fa-regular fa-square-check"></i> Select All</button>
+                <button id="chkCopySelected" class="chk-tool-btn" type="button"><i class="fa-regular fa-copy"></i> Copy Selected</button>
+                <button id="chkCopyWorking" class="chk-tool-btn working" type="button"><i class="fa-regular fa-copy"></i> Copy Working</button>
+                <button id="chkCopyDead" class="chk-tool-btn dead" type="button"><i class="fa-regular fa-copy"></i> Copy Dead</button>
+                <button id="chkCopyBlocked" class="chk-tool-btn blocked" type="button"><i class="fa-regular fa-copy"></i> Copy Blocked</button>
+                <button id="chkSaveCustom" class="chk-tool-btn save" type="button"><i class="fa-regular fa-floppy-disk"></i> Save as Custom</button>
+              </div>
+            </div>
+            <div id="chkList" class="chk-list" data-filter="all"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== ADMIN PLAYLIST PLAYER (opens when an admin playlist is chosen) ===== -->
       <section id="adminPlayerSection" class="tools-card admin-player-card hidden">
         <div class="admin-player-head">
@@ -370,60 +423,6 @@
           <div id="adminPlaylistList" class="pl-store-list"></div>
         </div>
       </div>
-
-      <!-- M3U Checker -->
-      <div class="tools-card">
-        <div class="tools-card-head green"><i class="fa-solid fa-circle-check"></i> M3U Checker</div>
-        <div class="tools-card-body">
-          <div class="chk-grid">
-            <div class="chk-col">
-              <label class="chk-label"><i class="fa-solid fa-bolt"></i> Single stream / playlist URL</label>
-              <input id="chkSingleUrl" class="tools-input" type="text" placeholder="https://example.com/stream.m3u8" autocomplete="off">
-              <div class="chk-btn-row">
-                <button id="chkPlayBtn" class="btn-solid" type="button"><i class="fa-solid fa-play"></i> Play</button>
-                <button id="chkCheckBtn" class="btn-outline" type="button"><i class="fa-regular fa-clock"></i> Check</button>
-                <button id="chkBrowseBtn" class="btn-outline" type="button"><i class="fa-solid fa-folder-open"></i> Browse File</button>
-                <input id="chkFileInput" type="file" accept=".m3u,.m3u8,.txt,text/plain" hidden>
-                <span id="chkStatus" class="chk-status"></span>
-              </div>
-              <div class="chk-btn-row">
-                <button id="chkClearBtn" class="btn-outline" type="button"><i class="fa-solid fa-xmark"></i> Clear</button>
-                <button id="chkRemoveCustomBtn" class="btn-outline" type="button"><i class="fa-solid fa-trash-can"></i> Remove Custom</button>
-              </div>
-            </div>
-            <div class="chk-col">
-              <label class="chk-label"><i class="fa-solid fa-table-list"></i> M3U / URL / HTML bulk</label>
-              <textarea id="chkBulk" class="tools-input chk-bulk" placeholder="M3U টেক্সট, প্লেলিস্ট/স্ট্রিম URL (প্রতি লাইনে একটা) বা HTML পেস্ট করুন…"></textarea>
-              <div class="chk-btn-row">
-                <button id="chkCheckAllBtn" class="btn-solid" type="button"><i class="fa-solid fa-circle-check"></i> Check All</button>
-                <button id="chkBulkClearBtn" class="btn-danger" type="button"><i class="fa-solid fa-trash"></i> Clear</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="chkResults" class="chk-results hidden">
-            <div class="chk-tabs" id="chkTabs">
-              <button class="chk-tab active" data-filter="all" type="button">All <span class="chk-tab-n" id="chkNAll">0</span></button>
-              <button class="chk-tab" data-filter="working" type="button"><i class="chk-dot working"></i> Working <span class="chk-tab-n" id="chkNWorking">0</span></button>
-              <button class="chk-tab" data-filter="blocked" type="button"><i class="chk-dot blocked"></i> Blocked <span class="chk-tab-n" id="chkNBlocked">0</span></button>
-              <button class="chk-tab" data-filter="dead" type="button"><i class="chk-dot dead"></i> Dead <span class="chk-tab-n" id="chkNDead">0</span></button>
-            </div>
-            <div class="chk-toolbar">
-              <span id="chkSummary" class="chk-summary"></span>
-              <div class="chk-toolbar-btns">
-                <button id="chkSelectAll" class="chk-tool-btn" type="button"><i class="fa-regular fa-square-check"></i> Select All</button>
-                <button id="chkCopySelected" class="chk-tool-btn" type="button"><i class="fa-regular fa-copy"></i> Copy Selected</button>
-                <button id="chkCopyWorking" class="chk-tool-btn working" type="button"><i class="fa-regular fa-copy"></i> Copy Working</button>
-                <button id="chkCopyDead" class="chk-tool-btn dead" type="button"><i class="fa-regular fa-copy"></i> Copy Dead</button>
-                <button id="chkCopyBlocked" class="chk-tool-btn blocked" type="button"><i class="fa-regular fa-copy"></i> Copy Blocked</button>
-                <button id="chkSaveCustom" class="chk-tool-btn save" type="button"><i class="fa-regular fa-floppy-disk"></i> Save as Custom</button>
-              </div>
-            </div>
-            <div id="chkList" class="chk-list" data-filter="all"></div>
-          </div>
-        </div>
-      </div>
-
 
       <!-- Duplicate / Unique channel checker -->
       <div class="tools-card">
@@ -570,7 +569,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mpegts.js/1.7.3/mpegts.js"></script>
-<script src="js/app.js?v=20261127d"></script>
-<script src="app-live-events.js?v=20261127d"></script>
+<script src="js/app.js?v=20261127f"></script>
+<script src="app-live-events.js?v=20261127f"></script>
 </body>
 </html>

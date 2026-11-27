@@ -12,6 +12,9 @@
   var RECENT_KEY = "shamim_last_watched_v1";
   var STATUS_KEY = "shamim_playlist_status_v1";
   var STATUS_TTL = 15 * 60 * 1000;
+  // A failed live-event link often comes back within a couple of minutes.
+  // Keep OFF short-lived so a recovered stream is not hidden for 15 minutes.
+  var STATUS_OFF_TTL = 2 * 60 * 1000;
   var RECENT_LIMIT = 40;
   var LIVE_KEY = "__live_events__";
   var RECENT_TAB = "__recent_favs__";
@@ -143,7 +146,8 @@
     if (ch._sharedWithMain || findMain(ch)) return;
     if (ch.isOff) { ch.liveStatus = "off"; return; }
     var cached = statusCache[ch.id];
-    if (cached && Date.now() - cached.ts < STATUS_TTL) {
+    var ttl = cached && cached.status === "off" ? STATUS_OFF_TTL : STATUS_TTL;
+    if (cached && Date.now() - cached.ts < ttl) {
       applyStatus(ch, cached);
       return;
     }
@@ -427,7 +431,21 @@
       '<div class="le-group">' + esc(channel.group || "Others") + "</div>";
     card.addEventListener("click", function () {
       if (channel.liveStatus === "off") {
-        leToast("এই চ্যানেলটি এখন চালু নেই (OFF)");
+        // A cached OFF is only a snapshot. Tapping the card forces a fresh
+        // proof instead of leaving a recovered live event hidden for minutes.
+        if (channel._sharedWithMain && typeof window.recheckChannelStatus === "function") {
+          window.recheckChannelStatus(channel);
+        } else {
+          delete statusCache[channel.id];
+          writeJSON(STATUS_KEY, statusCache);
+          channel.liveStatus = "checking";
+          channel.verifiedUrl = null;
+          channel.verifiedAt = 0;
+          channel._queued = false;
+          enqueueProbe(channel, true);
+        }
+        updateBadge(channel);
+        leToast("OFF চ্যানেলটি আবার যাচাই করা হচ্ছে…");
         return;
       }
       // "checking" is not a verdict. Let the player do its own fresh proof so a
