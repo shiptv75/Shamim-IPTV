@@ -46,8 +46,19 @@ function proxyWrapStream(url) {
 let PROXY_SOURCES = new Set(["FanCode", "FanCode_BD", "TapMad", "SonyLiv"]);
 const PROXIED_URLS = new Set(); // raw stream URLs that came from a PROXY_SOURCES playlist
 
+// These playlists still publish plain http:// streams. An HTTPS page/WebView
+// blocks them as mixed content, so each request has to go through our own
+// HTTPS proxy (which is allowlisted for these hosts).
+const INSECURE_PROXY_HOSTS = new Set(["103.151.60.184"]);
+function needsInsecureProxy(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" && INSECURE_PROXY_HOSTS.has(u.hostname.toLowerCase());
+  } catch { return false; }
+}
+
 function playbackUrl(url) {
-  return PROXIED_URLS.has(url) ? proxyWrapStream(url) : url;
+  return PROXIED_URLS.has(url) || needsInsecureProxy(url) ? proxyWrapStream(url) : url;
 }
 function realUrl(url) {
   if (url && url.startsWith(STREAM_PROXY_BASE)) {
@@ -592,7 +603,7 @@ const LIVE_OFF_CACHE_TTL = 2 * 60 * 1000;
 // Bumped when the meaning of a cached result changes. Results written by the
 // old manifest-only checker are dropped on load, so no visitor inherits a
 // false ON from a previous version of this code.
-const LIVE_CACHE_VERSION = 2;
+const LIVE_CACHE_VERSION = 3;
 const RECHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes (OFF links recover quickly)
 // How many channels are probed at once (each with up to two mirrors racing).
 // The probes are small ranged requests now, so this stays gentle while being
