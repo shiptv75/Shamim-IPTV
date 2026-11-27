@@ -618,7 +618,7 @@ const LIVE_OFF_CACHE_TTL = 2 * 60 * 1000;
 // Bumped when the meaning of a cached result changes. Results written by the
 // old manifest-only checker are dropped on load, so no visitor inherits a
 // false ON from a previous version of this code.
-const LIVE_CACHE_VERSION = 4;
+const LIVE_CACHE_VERSION = 5;
 const RECHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes (OFF links recover quickly)
 // How many channels are probed at once (each with up to two mirrors racing).
 // The probes are small ranged requests now, so this stays gentle while being
@@ -628,8 +628,10 @@ const MAX_CONCURRENT_PROBES = 10;
 // always cover it, so a dead channel costs two probes instead of five.
 const MAX_SOURCES_PER_PROBE = 2;
 const RELIST_THROTTLE = 700;
-const PROBE_MANIFEST_TIMEOUT = 3000;
-const PROBE_SEGMENT_TIMEOUT = 3500;
+const PROBE_MANIFEST_TIMEOUT = 6000;
+// The Vercel proxy fetches a whole live segment before answering, so the old
+// 3.5s budget marked healthy streams DEAD when the first request was slow.
+const PROBE_SEGMENT_TIMEOUT = 9000;
 const PROBE_MAX_PLAYLIST_BYTES = 250000;
 const PROBE_SEGMENT_BYTES = 8192;
 const PROBE_URL_CACHE_TTL = 2 * 60 * 1000;
