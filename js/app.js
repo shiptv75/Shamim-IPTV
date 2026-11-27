@@ -585,12 +585,15 @@ function buildGroups() {
 // proof has gone stale is re-proved before it plays. Anything that fails while
 // playing is demoted to OFF, so a badge cannot stay wrong for long.
 const LIVE_CACHE_KEY = "obiram_stream_status";
-const LIVE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const LIVE_CACHE_TTL = 15 * 60 * 1000; // proven ON stays trusted for 15 minutes
+// A failed probe is only a snapshot — live event links come back often. Keep
+// OFF short-lived so a channel that recovers is not hidden for a quarter hour.
+const LIVE_OFF_CACHE_TTL = 2 * 60 * 1000;
 // Bumped when the meaning of a cached result changes. Results written by the
 // old manifest-only checker are dropped on load, so no visitor inherits a
 // false ON from a previous version of this code.
 const LIVE_CACHE_VERSION = 2;
-const RECHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const RECHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes (OFF links recover quickly)
 // How many channels are probed at once (each with up to two mirrors racing).
 // The probes are small ranged requests now, so this stays gentle while being
 // roughly twice as fast as the old 6-at-a-time manifest check.
@@ -662,7 +665,9 @@ window.addEventListener("pagehide", () => {
 // straight on the mirror that worked instead of re-discovering it.
 function getCachedStatus(chan) {
   const entry = liveStatusCache[chan.id];
-  if (entry && entry.v === LIVE_CACHE_VERSION && Date.now() - entry.ts < LIVE_CACHE_TTL) {
+  if (!entry || entry.v !== LIVE_CACHE_VERSION) return null;
+  const ttl = entry.status === "off" ? LIVE_OFF_CACHE_TTL : LIVE_CACHE_TTL;
+  if (Date.now() - entry.ts < ttl) {
     return { status: entry.status, url: entry.url || null, ts: entry.ts };
   }
   return null;
@@ -1098,6 +1103,29 @@ function probeUrlCached(rawUrl) {
   }
   return promise;
 }
+
+// Forget a stale failure and prove the channel again right now. Used when a
+// visitor taps an OFF card: a cached OFF is only a snapshot, not a verdict.
+// Row-only cards call this when tapped; expose the same priority queue used by
+// the main grid so the recheck actually runs instead of silently doing nothing.
+window.enqueueProbe = enqueueProbe;
+
+function recheckChannelStatus(chan) {
+  if (!chan) return;
+  delete liveStatusCache[chan.id];
+  persistStatusCacheSoon();
+  (chan.sources || []).forEach((u) => {
+    probeUrlCache.delete(u);
+    probeUrlCache.delete(playbackUrl(u));
+  });
+  chan.liveStatus = "checking";
+  chan.verifiedUrl = null;
+  chan.verifiedAt = 0;
+  chan._queued = false;
+  updateCardStatusBadge(chan);
+  enqueueProbe(chan, true);
+}
+window.recheckChannelStatus = recheckChannelStatus;
 
 // Races every mirror of a channel and resolves on the first one that is proven
 // playable — one timeout per channel instead of one per source.
