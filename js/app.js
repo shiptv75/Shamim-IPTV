@@ -4482,8 +4482,8 @@ function setupThemeToggle() {
 // =====================================================================
 const LS_SAVED_PLAYLISTS = "iptv_saved_playlists";
 const LS_CUSTOM_CHANNELS = "shamim_custom_channels_v1";
-const CHECK_TIMEOUT_MS = 10000;   // per-channel verdict deadline (same as the old tool)
-const CHECK_CONCURRENCY = 6;      // channels tested at the same time
+const CHECK_TIMEOUT_MS = 14000;   // per-channel verdict deadline (proxied segments need longer)
+const CHECK_CONCURRENCY = 10;     // channels tested at the same time
 
 let checkerChannels = [];         // [{ id, name, url, logo, group, status, selected }]
 let checkerFilter = "all";        // all | working | blocked | dead
@@ -4874,6 +4874,10 @@ async function chkBulkRun() {
 // blocked = HTTP 403/451; dead = anything else, including no answer in 10s.
 function checkStreamStatus(url, done) {
   let finished = false, hls = null, mp = null, timer = null;
+  // The checker used to test the raw URL, bypassing playbackUrl() entirely.
+  // That made every http:// / CORS-blocked stream look dead even though the
+  // player could handle it through a proxy.
+  const streamUrl = playbackUrl(url);
   const video = document.createElement("video");
   video.muted = true; video.playsInline = true; video.preload = "auto";
   video.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9px;top:-9px;";
@@ -4891,8 +4895,8 @@ function checkStreamStatus(url, done) {
   timer = setTimeout(() => finish("dead"), CHECK_TIMEOUT_MS);
 
   try {
-    if (isTsStream(url) && typeof mpegts !== "undefined" && mpegts.isSupported()) {
-      mp = mpegts.createPlayer({ type: "mpegts", url, isLive: true, cors: true });
+    if (isTsStream(streamUrl) && typeof mpegts !== "undefined" && mpegts.isSupported()) {
+      mp = mpegts.createPlayer({ type: "mpegts", url: streamUrl, isLive: true, cors: true });
       mp.attachMediaElement(video);
       mp.on(mpegts.Events.ERROR, (type, detail, info) => finish(info && info.code === 403 ? "blocked" : "dead"));
       mp.on(mpegts.Events.MEDIA_INFO, () => finish("working"));
@@ -4901,13 +4905,21 @@ function checkStreamStatus(url, done) {
       mp.load();
       return;
     }
+    // Plain video files are not HLS — asking hls.js to parse them always fails.
+    if (/\.(mp4|mkv|flv|aac|mp3)(\?|#|$)/i.test(streamUrl)) {
+      video.addEventListener("canplay", () => finish("working"));
+      video.addEventListener("playing", () => finish("working"));
+      video.addEventListener("error", () => finish("dead"));
+      video.src = streamUrl; video.load();
+      return;
+    }
     if (window.Hls && Hls.isSupported()) {
       hls = new Hls({
-        manifestLoadingTimeOut: 8000, manifestLoadingMaxRetry: 0,
-        levelLoadingTimeOut: 8000, levelLoadingMaxRetry: 0,
-        fragLoadingTimeOut: 8000, fragLoadingMaxRetry: 0, debug: false,
+        manifestLoadingTimeOut: 11000, manifestLoadingMaxRetry: 0,
+        levelLoadingTimeOut: 11000, levelLoadingMaxRetry: 0,
+        fragLoadingTimeOut: 11000, fragLoadingMaxRetry: 0, debug: false,
       });
-      hls.loadSource(url);
+      hls.loadSource(streamUrl);
       hls.attachMedia(video);
       // a parsed manifest proves nothing (it can stay valid after a token expires) —
       // only an actual media fragment counts as "working"
@@ -4925,7 +4937,7 @@ function checkStreamStatus(url, done) {
     video.addEventListener("canplay", () => finish("working"));
     video.addEventListener("playing", () => finish("working"));
     video.addEventListener("error", () => finish("dead"));
-    video.src = url; video.load();
+    video.src = streamUrl; video.load();
   } catch { finish("dead"); }
 }
 
