@@ -4754,6 +4754,7 @@ function checkerPlayUrl(rawUrl, label) {
     chkHlsInstance.attachMedia(v);
     chkHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       chkSetPlayerState("Playing", true);
+      setChkStatus("✓ Stream is playing", "ok");
       v.play().catch(() => {});
     });
     chkHlsInstance.on(Hls.Events.ERROR, (evt, data) => {
@@ -5101,6 +5102,7 @@ function setupToolsPage() {
     chkPreview.addEventListener("loadeddata", () => {
       $("#chkLoader")?.classList.remove("active");
       chkSetPlayerState("Playing", true);
+      setChkStatus("✓ Stream is playing", "ok");
     });
     chkPreview.addEventListener("volumechange", chkSyncMuteIcon);
     chkPreview.addEventListener("error", () => {
