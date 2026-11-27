@@ -10,7 +10,7 @@
   "use strict";
 
   var RECENT_KEY = "shamim_last_watched_v1";
-  var STATUS_KEY = "shamim_playlist_status_v3";
+  var STATUS_KEY = "shamim_playlist_status_v4";
   var STATUS_TTL = 15 * 60 * 1000;
   // A failed live-event link often comes back within a couple of minutes.
   // Keep OFF short-lived so a recovered stream is not hidden for 15 minutes.
