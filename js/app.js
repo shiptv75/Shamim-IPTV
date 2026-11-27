@@ -32,9 +32,16 @@ const LIVE_EVENTS_SOURCE_TAGS = new Set([
 // Used ONLY for URLs from PROXY_SOURCES (see playbackUrl below): routing every
 // stream through it earlier broke far more channels than it fixed.
 const STREAM_PROXY_BASE = "https://shamimiptv.pages.dev/api/proxy?url=";
+// Vercel's /api/proxy runs outside Cloudflare, so it can reach plain-HTTP
+// stream hosts whose CDN blocks Cloudflare egress (e.g. KBTV's IP host).
+const ALT_PROXY_BASE = "https://shiptv.vercel.app/api/proxy?url=";
+const PROXY_BASES = [STREAM_PROXY_BASE, ALT_PROXY_BASE];
 function proxyWrapStream(url) {
   if (!url) return url;
   return STREAM_PROXY_BASE + encodeURIComponent(url);
+}
+function isProxyUrl(url) {
+  return typeof url === "string" && PROXY_BASES.some((base) => url.startsWith(base));
 }
 
 // Per-SOURCE proxying (not blanket). Streams from these sources are played
@@ -46,13 +53,28 @@ function proxyWrapStream(url) {
 let PROXY_SOURCES = new Set(["FanCode", "FanCode_BD", "TapMad", "SonyLiv"]);
 const PROXIED_URLS = new Set(); // raw stream URLs that came from a PROXY_SOURCES playlist
 
+// These hosts publish http:// streams without CORS headers. The Vercel proxy
+// rewrites their manifests AND segments through itself, so both probing and
+// playback work from an HTTPS page/WebView.
+const ALT_PROXY_HOSTS = new Set(["103.151.60.184"]);
+function needsAltProxy(url) {
+  try {
+    const u = new URL(url);
+    return ALT_PROXY_HOSTS.has(u.hostname.toLowerCase());
+  } catch { return false; }
+}
+
 function playbackUrl(url) {
-  return PROXIED_URLS.has(url) ? proxyWrapStream(url) : url;
+  if (PROXIED_URLS.has(url)) return proxyWrapStream(url);
+  if (needsAltProxy(url)) return ALT_PROXY_BASE + encodeURIComponent(url);
+  return url;
 }
 function realUrl(url) {
-  if (url && url.startsWith(STREAM_PROXY_BASE)) {
-    const tail = url.slice(STREAM_PROXY_BASE.length).replace(/&raw=1$/, "");
-    try { return decodeURIComponent(tail); } catch {}
+  for (const base of PROXY_BASES) {
+    if (url && url.startsWith(base)) {
+      const tail = url.slice(base.length).replace(/&raw=1$/, "");
+      try { return decodeURIComponent(tail); } catch {}
+    }
   }
   return url;
 }
@@ -596,7 +618,7 @@ const LIVE_OFF_CACHE_TTL = 2 * 60 * 1000;
 // Bumped when the meaning of a cached result changes. Results written by the
 // old manifest-only checker are dropped on load, so no visitor inherits a
 // false ON from a previous version of this code.
-const LIVE_CACHE_VERSION = 3;
+const LIVE_CACHE_VERSION = 4;
 const RECHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes (OFF links recover quickly)
 // How many channels are probed at once (each with up to two mirrors racing).
 // The probes are small ranged requests now, so this stays gentle while being
@@ -986,7 +1008,7 @@ async function probeMediaPlaylist(text, base, proxied) {
 // proxy fetch itself — and the proxy's allowlist rejects that, so the whole
 // channel would be marked OFF even though it plays. Leave them untouched.
 function probeRequestUrl(url, proxied) {
-  if (typeof url === "string" && url.startsWith(STREAM_PROXY_BASE)) return url;
+  if (isProxyUrl(url)) return url;
   return proxied ? proxyWrapStream(url) : url;
 }
 
@@ -1012,7 +1034,7 @@ async function probeHlsChain(requestUrl, proxied) {
 // Entry point: decide whether one source URL is playable right now.
 async function probeUrlDeep(rawUrl) {
   const requestUrl = playbackUrl(rawUrl);
-  const proxied = requestUrl.startsWith(STREAM_PROXY_BASE);
+  const proxied = isProxyUrl(requestUrl);
   const target = realUrl(requestUrl);
 
   if (/\.m3u8/i.test(target)) return await probeHlsChain(requestUrl, proxied);
@@ -2635,12 +2657,8 @@ function isTsStream(url) {
   // querystring on the original (very common for token-protected streams)
   // pushes it away from the string's end, which would break every test
   // below if we matched against the wrapped URL as-is.
-  if (url.startsWith(STREAM_PROXY_BASE)) {
-    try {
-      const inner = decodeURIComponent(url.slice(STREAM_PROXY_BASE.length));
-      if (inner && inner !== url) return isTsStream(inner);
-    } catch {}
-  }
+  const inner = realUrl(url);
+  if (inner && inner !== url) return isTsStream(inner);
   if (/\.m3u8(\?.*)?$/i.test(url)) return false;
   if (/\/mono\.m3u8/i.test(url)) return false;
   if (/\.ts(\?.*)?$/i.test(url)) return true;
