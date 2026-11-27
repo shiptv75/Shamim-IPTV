@@ -3464,6 +3464,7 @@ async function adminOpenPlaylist(def) {
   const listEl = $("#adminChList");
   if (!section || !listEl || !def) return;
 
+  stopCheckerPlayer(false);
   section.classList.remove("hidden");
   const nameEl = $("#adminPlaylistName");
   if (nameEl) nameEl.textContent = def.name || "Admin Playlist";
@@ -4465,6 +4466,14 @@ let checkerFilter = "all";        // all | working | blocked | dead
 let checkerRun = 0;               // bumped on every new load/clear so stale async results are ignored
 let checkerSeq = 0;               // unique row ids
 
+// In-Tools preview player state. Kept separate from the main player so a user
+// can test a stream without leaving the Tools page.
+let chkHlsInstance = null;
+let chkMpegtsInstance = null;
+let chkStallTimer = null;
+let chkMuted = true;
+let chkVolume = 0.8;
+
 const escHtml = (v) =>
   String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -4558,6 +4567,7 @@ function closeToolsPage() {
   document.body.classList.remove("tools-mode");
   const adminVideo = $("#adminVideoNode");
   if (adminVideo && !adminVideo.paused) { adminVideo.pause(); try { adminSyncPlayIcon(); } catch {} }
+  stopCheckerPlayer(false);
   const b = $("#toolsBtn"); if (b) { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); }
   requestAnimationFrame(() => { try { syncPaneHeights(); } catch {} }); // player pane was hidden — re-measure
 }
@@ -4641,25 +4651,143 @@ async function loadPlaylistFromUrl(url, label) {
 const looksLikeHlsManifest = (t) => /#EXT-X-(TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE|VERSION)/.test(t);
 const looksLikeDirectStream = (u) => isTsStream(u) || /\.(mp4|mkv|flv|aac|mp3)(\?|#|$)/i.test(u);
 
-function playDirectStream(url) {
-  const ch = { id: "chk_direct_" + Date.now(), name: nameFromUrl(url), logo: "", group: "Direct", sources: [url], sourceTags: new Set(["Checker"]), liveStatus: "on" };
-  closeToolsPage();
-  openPlayer(ch);
+function chkVideoEl() { return $("#chkVideo"); }
+
+function chkSetPlayerState(message, playing) {
+  const el = $("#chkPlayerStatus");
+  if (el) el.textContent = message || "";
+  const frame = $("#chkPlayerFrame");
+  if (frame) frame.classList.toggle("has-stream", !!playing);
+  chkSyncPlayIcon();
+}
+
+function chkSyncPlayIcon() {
+  const v = chkVideoEl();
+  const icon = $("#chkMiniPlayIcon");
+  if (!v || !icon) return;
+  icon.className = v.paused ? "fa-solid fa-play" : "fa-solid fa-pause";
+}
+
+function chkSyncMuteIcon() {
+  const v = chkVideoEl();
+  const icon = $("#chkMiniMuteIcon");
+  if (!v || !icon) return;
+  const muted = v.muted || v.volume === 0;
+  icon.className = muted ? "fa-solid fa-volume-xmark" : "fa-solid fa-volume-high";
+}
+
+function stopCheckerPlayer(resetMeta) {
+  clearTimeout(chkStallTimer);
+  chkStallTimer = null;
+  try { if (chkHlsInstance) chkHlsInstance.destroy(); } catch {}
+  try { if (chkMpegtsInstance) chkMpegtsInstance.destroy(); } catch {}
+  chkHlsInstance = null;
+  chkMpegtsInstance = null;
+  const v = chkVideoEl();
+  if (v) {
+    try { v.pause(); v.removeAttribute("src"); v.load(); } catch {}
+  }
+  $("#chkLoader")?.classList.remove("active");
+  if (resetMeta) {
+    const title = $("#chkPlayerTitle");
+    if (title) title.textContent = "No stream playing";
+    chkSetPlayerState("Paste an M3U/M3U8 link and press Play", false);
+  }
+}
+
+// Plays a single stream in the Tools card itself — no navigation away from the
+// checker, so a link can be checked and watched in the same place.
+function checkerPlayUrl(rawUrl, label) {
+  const url = playbackUrl(rawUrl);
+  const v = chkVideoEl();
+  if (!v) { setChkStatus("✗ Player unavailable", "err"); return; }
+  stopCheckerPlayer(false);
+  const title = $("#chkPlayerTitle");
+  if (title) title.textContent = label || nameFromUrl(rawUrl);
+  chkSetPlayerState("Loading stream…", true);
+  $("#chkLoader")?.classList.add("active");
+  setChkStatus("⏳ Stream loaded in player — checking playback…", "ok");
+
+  v.volume = chkVolume;
+  v.muted = chkMuted;
+
+  const markPlaying = () => {
+    clearTimeout(chkStallTimer);
+    $("#chkLoader")?.classList.remove("active");
+    chkSetPlayerState("Playing", true);
+    setChkStatus("✓ Stream is playing", "ok");
+  };
+  const tryNative = () => {
+    try {
+      v.src = url;
+      v.volume = chkVolume;
+      v.muted = chkMuted;
+      v.play().catch(() => {});
+    } catch { chkSetPlayerState("Could not open this stream", false); }
+  };
+  const tryMpegts = () => {
+    if (typeof mpegts === "undefined" || !mpegts.isSupported()) { tryNative(); return; }
+    chkMpegtsInstance = mpegts.createPlayer({
+      type: "mpegts", url, isLive: true, enableWorker: true, cors: true,
+      withCredentials: false, liveBufferLatencyChasing: true,
+    });
+    chkMpegtsInstance.attachMediaElement(v);
+    chkMpegtsInstance.on(mpegts.Events.MEDIA_INFO, markPlaying);
+    chkMpegtsInstance.on(mpegts.Events.ERROR, () => {
+      try { chkMpegtsInstance.destroy(); } catch {}
+      chkMpegtsInstance = null;
+      tryNative();
+    });
+    chkMpegtsInstance.load();
+    chkMpegtsInstance.play().catch(() => {});
+  };
+  const tryHls = () => {
+    if (!(window.Hls && Hls.isSupported())) { tryNative(); return; }
+    chkHlsInstance = new Hls({
+      maxBufferLength: 10, maxMaxBufferLength: 30, maxBufferSize: 30 * 1000 * 1000,
+      enableWorker: true, lowLatencyMode: true, startLevel: -1,
+      manifestLoadingTimeOut: 10000, manifestLoadingMaxRetry: 2,
+      levelLoadingTimeOut: 8000, fragLoadingTimeOut: 10000,
+      xhrSetup: (xhr) => { xhr.withCredentials = false; },
+    });
+    chkHlsInstance.loadSource(url);
+    chkHlsInstance.attachMedia(v);
+    chkHlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      chkSetPlayerState("Playing", true);
+      v.play().catch(() => {});
+    });
+    chkHlsInstance.on(Hls.Events.ERROR, (evt, data) => {
+      if (!data || !data.fatal) return;
+      try { chkHlsInstance.destroy(); } catch {}
+      chkHlsInstance = null;
+      tryNative();
+    });
+  };
+
+  if (isTsStream(url)) tryMpegts();
+  else tryHls();
+
+  chkStallTimer = setTimeout(() => {
+    if (v.readyState >= 2 && !v.paused) return;
+    $("#chkLoader")?.classList.remove("active");
+    chkSetPlayerState("Stream did not respond — link may be dead or blocked", false);
+    setChkStatus("✗ Dead / unreachable stream", "err");
+  }, 14000);
 }
 
 async function chkPlay() {
   const url = ($("#chkSingleUrl").value || "").trim();
   if (!isHttpUrl(url)) return setChkStatus("✗ সঠিক URL দিন", "err");
-  if (looksLikeDirectStream(url)) return playDirectStream(url);
+  if (looksLikeDirectStream(url)) return checkerPlayUrl(url, nameFromUrl(url));
   setChkStatus("⏳ চেক করা হচ্ছে…");
   let text = "";
   try { text = await toolsFetchText(url); }
   catch {
-    // can't read it (CORS etc.) — a .m3u8 link is most likely a stream, so just try to play it
-    if (/\.m3u8(\?|#|$)/i.test(url)) return playDirectStream(url);
+    // can't read it (CORS etc.) — a .m3u8 link is most likely a stream, so play it here
+    if (/\.m3u8(\?|#|$)/i.test(url)) return checkerPlayUrl(url, nameFromUrl(url));
     return setChkStatus("✗ লিংক লোড করা যায়নি (বন্ধ বা ব্লকড)", "err");
   }
-  if (looksLikeHlsManifest(text)) return playDirectStream(url);
+  if (looksLikeHlsManifest(text)) return checkerPlayUrl(url, nameFromUrl(url));
   const list = parseToCheckerChannels(text, "");
   if (!list.length) return setChkStatus("⚠ এই লিংকে কোনো চ্যানেল পাওয়া যায়নি", "err");
   setCheckerChannels(list, `✓ ${list.length} channels loaded — Checking status…`);
@@ -4876,9 +5004,8 @@ async function copyChannels(list, label) {
 }
 
 function playCheckerChannel(c) {
-  const ch = { id: "chk_" + c.id, name: c.name, logo: c.logo, group: c.group || "Checker", sources: [c.url], sourceTags: new Set(["Checker"]), liveStatus: "on" };
-  closeToolsPage();
-  openPlayer(ch);
+  if (!c || !c.url) return;
+  checkerPlayUrl(c.url, c.name || nameFromUrl(c.url));
 }
 
 function saveSelectedAsCustom() {
@@ -4933,16 +5060,54 @@ function setupToolsPage() {
     }
   });
 
-  // single URL / file / bulk
+  // single URL / file / bulk — preview plays in the left-hand Tools player
   on("chkPlayBtn", "click", chkPlay);
-  on("chkCheckBtn", "click", chkCheck);
   on("chkSingleUrl", "keydown", (e) => { if (e.key === "Enter") chkPlay(); });
   on("chkBrowseBtn", "click", () => { const f = $("#chkFileInput"); if (f) f.click(); });
   on("chkFileInput", "change", (e) => { handleCheckerFile(e.target.files && e.target.files[0]); e.target.value = ""; });
-  on("chkClearBtn", "click", () => { const u = $("#chkSingleUrl"); if (u) u.value = ""; clearChecker(); });
   on("chkRemoveCustomBtn", "click", removeCustomChannels);
   on("chkCheckAllBtn", "click", chkBulkRun);
-  on("chkBulkClearBtn", "click", () => { const b = $("#chkBulk"); if (b) b.value = ""; clearChecker(); });
+  on("chkMiniPlayBtn", "click", () => {
+    const v = chkVideoEl();
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {}); else v.pause();
+    chkSyncPlayIcon();
+  });
+  on("chkMiniMuteBtn", "click", () => {
+    const v = chkVideoEl();
+    if (!v) return;
+    chkMuted = !chkMuted;
+    v.muted = chkMuted;
+    chkSyncMuteIcon();
+  });
+  on("chkMiniVolume", "input", (e) => {
+    const v = chkVideoEl();
+    chkVolume = Number(e.target.value);
+    if (!v) return;
+    v.volume = chkVolume;
+    if (chkVolume > 0) { chkMuted = false; v.muted = false; }
+    chkSyncMuteIcon();
+  });
+  on("chkMiniFullBtn", "click", () => {
+    const frame = $("#chkPlayerFrame");
+    if (!frame) return;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else frame.requestFullscreen?.();
+  });
+  const chkPreview = chkVideoEl();
+  if (chkPreview) {
+    chkPreview.addEventListener("play", chkSyncPlayIcon);
+    chkPreview.addEventListener("pause", chkSyncPlayIcon);
+    chkPreview.addEventListener("loadeddata", () => {
+      $("#chkLoader")?.classList.remove("active");
+      chkSetPlayerState("Playing", true);
+    });
+    chkPreview.addEventListener("volumechange", chkSyncMuteIcon);
+    chkPreview.addEventListener("error", () => {
+      $("#chkLoader")?.classList.remove("active");
+      chkSetPlayerState("Stream did not respond — link may be dead or blocked", false);
+    });
+  }
 
   // results: filter tabs, row actions, checkboxes
   on("chkTabs", "click", (e) => { const t = e.target.closest(".chk-tab"); if (t) setCheckerFilter(t.dataset.filter); });
