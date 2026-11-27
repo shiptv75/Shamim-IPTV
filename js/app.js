@@ -1110,7 +1110,7 @@ function probeUrlCached(rawUrl) {
 // the main grid so the recheck actually runs instead of silently doing nothing.
 window.enqueueProbe = enqueueProbe;
 
-function recheckChannelStatus(chan) {
+async function recheckChannelStatus(chan) {
   if (!chan) return;
   delete liveStatusCache[chan.id];
   persistStatusCacheSoon();
@@ -1123,7 +1123,19 @@ function recheckChannelStatus(chan) {
   chan.verifiedAt = 0;
   chan._queued = false;
   updateCardStatusBadge(chan);
-  enqueueProbe(chan, true);
+  if (typeof window.updateLeBadge === "function") window.updateLeBadge(chan);
+
+  // Do not reuse a memoised failure from the sweep that produced the OFF. This
+  // is a user-initiated second opinion: ask the CDN again, right now.
+  const urls = (chan.sources || []).slice(0, MAX_SOURCES_PER_PROBE);
+  const result = await withTimeout(probeRaceSourcesFresh(urls), 20000);
+  if (!result) return;
+  chan.liveStatus = result.ok ? "on" : "off";
+  chan.verifiedUrl = result.ok ? result.rawUrl : null;
+  chan.verifiedAt = result.ok ? Date.now() : 0;
+  setCachedStatus(chan, chan.liveStatus, chan.verifiedUrl);
+  updateCardStatusBadge(chan);
+  if (typeof window.updateLeBadge === "function") window.updateLeBadge(chan);
 }
 window.recheckChannelStatus = recheckChannelStatus;
 
@@ -1137,6 +1149,31 @@ function probeRaceSources(rawUrls) {
     let settled = false;
     list.forEach((rawUrl) => {
       probeUrlCached(rawUrl)
+        .then((result) => {
+          if (settled) return;
+          if (result && result.ok) { settled = true; resolve({ ok: true, rawUrl, kind: result.kind }); return; }
+          pending -= 1;
+          if (pending === 0) { settled = true; resolve({ ok: false, rawUrl: null }); }
+        })
+        .catch(() => {
+          if (settled) return;
+          pending -= 1;
+          if (pending === 0) { settled = true; resolve({ ok: false, rawUrl: null }); }
+        });
+    });
+  });
+}
+
+// Same race, but every request is new. Used only for an explicit recheck so a
+// stale memoised failure cannot confirm the OFF badge it was meant to replace.
+function probeRaceSourcesFresh(rawUrls) {
+  return new Promise((resolve) => {
+    const list = (rawUrls || []).filter(Boolean);
+    if (!list.length) { resolve({ ok: false, rawUrl: null }); return; }
+    let pending = list.length;
+    let settled = false;
+    list.forEach((rawUrl) => {
+      probeUrlDeep(rawUrl)
         .then((result) => {
           if (settled) return;
           if (result && result.ok) { settled = true; resolve({ ok: true, rawUrl, kind: result.kind }); return; }
